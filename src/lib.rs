@@ -370,4 +370,140 @@ mod tests {
         assert_eq!(text_tokens, vec![10, 50]);
     }
 
+    #[test]
+    fn test_stacking_operations() {
+        let space = DynamicGingerSpace::new(1000);
+        let tokens: Vec<u32> = vec![0, 1, 5, 6, 7, 8, 9, 10, 50, 1010, 1100, 1200, 1500, 2000];
+        
+        // Stack operations: first filter to tail, then take only first 3
+        let stacked: Vec<u32> = tokens.clone().into_iter()
+            .tails(&space)
+            .take(3)
+            .collect();
+        assert_eq!(stacked, vec![1010, 1100, 1200]);
+        
+        // Chain different filters
+        let all_special_tokens: Vec<u32> = tokens.clone().into_iter()
+            .specials::<DynamicGingerSpace, GingerToken>()
+            .map(|token| token.in_::<DynamicGingerSpace>())
+            .chain(tokens.clone().into_iter().specials::<DynamicGingerSpace, MaoToken>().map(|token| token.in_::<DynamicGingerSpace>()))
+            .collect();
+        assert_eq!(all_special_tokens, vec![0, 1, 5, 6, 7, 8]);
+        
+        // Filter and then count
+        let mao_count = tokens.clone().into_iter()
+            .specials::<DynamicGingerSpace, MaoToken>()
+            .count();
+        assert_eq!(mao_count, 4); // ProgramStart, ProgramEnd, Fn, Struct
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        let space = DynamicGingerSpace::new(500);
+        
+        // Empty iterator
+        let empty: Vec<u32> = vec![];
+        let empty_result: Vec<u32> = empty.into_iter().tails(&space).collect();
+        assert_eq!(empty_result, vec![]);
+        
+        // All tokens out of range
+        let out_of_range = vec![2000, 3000, 4000];
+        let no_tails: Vec<u32> = out_of_range.clone().into_iter().tails(&space).collect();
+        assert_eq!(no_tails, vec![]);
+        
+        let no_specials: Vec<MaoToken> = out_of_range.into_iter()
+            .specials::<DynamicGingerSpace, MaoToken>()
+            .collect();
+        assert_eq!(no_specials, vec![]);
+        
+        // Boundary cases
+        let boundary = vec![1009, 1010, 1509, 1510]; // Last static, first tail, last tail, out of range
+        let tail_boundary: Vec<u32> = boundary.clone().into_iter().tails(&space).collect();
+        assert_eq!(tail_boundary, vec![1010, 1509]); // Only the tail tokens
+        
+        // Test exact boundaries for static ranges
+        let text_boundary = vec![9, 10, 1009, 1010]; // Before, first, last, after TextTokens
+        let text_results: Vec<u32> = text_boundary.into_iter()
+            .ranges::<DynamicGingerSpace, TextTokens>()
+            .collect();
+        assert_eq!(text_results, vec![10, 1009]); // Only tokens in TextTokens range
+    }
+
+    #[test]
+    fn test_offset_calculations() {
+        // Test that offsets are calculated correctly across different spaces
+        // Same token should have same value in both spaces (since they have same static layout)
+        let mao_token = MaoToken::ProgramStart;
+        let value_space1 = mao_token.in_::<GingerSpace>();
+        let value_space2 = mao_token.in_::<DynamicGingerSpace>();
+        assert_eq!(value_space1, value_space2);
+        
+        // Test that is() works correctly for both spaces
+        assert_eq!(GingerSpace::is::<MaoToken>(5), Some(MaoToken::ProgramStart));
+        assert_eq!(DynamicGingerSpace::is::<MaoToken>(5), Some(MaoToken::ProgramStart));
+        
+        // Test range boundaries are consistent
+        assert_eq!(GingerSpace::to::<TextTokens>(10), Some(0)); // First text token
+        assert_eq!(DynamicGingerSpace::to::<TextTokens>(10), Some(0)); // Should be same
+        
+        assert_eq!(GingerSpace::to::<TextTokens>(1009), Some(999)); // Last text token  
+        assert_eq!(DynamicGingerSpace::to::<TextTokens>(1009), Some(999)); // Should be same
+    }
+
+    #[test]
+    fn test_different_space_layouts() {
+        // Create a space with different offset layout
+        struct AlternativeSpace;
+        
+        impl TokenSpace for AlternativeSpace {
+            const RESERVED: u32 = MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT + TextTokens::COUNT;
+            
+            fn count(&self) -> u32 {
+                Self::RESERVED
+            }
+        }
+        
+        // Different offset order: Mao first, Single second, Ginger third, Text last
+        impl Position<MaoToken> for AlternativeSpace {
+            const OFFSET: u32 = 0; // Mao tokens at start
+        }
+        
+        impl Position<SingleToken> for AlternativeSpace {
+            const OFFSET: u32 = MaoToken::COUNT; // Single after Mao
+        }
+        
+        impl Position<GingerToken> for AlternativeSpace {
+            const OFFSET: u32 = MaoToken::COUNT + SingleToken::COUNT; // Ginger after Single
+        }
+        
+        impl Position<TextTokens> for AlternativeSpace {
+            const OFFSET: u32 = MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT; // Text last
+        }
+        
+        // Test that same tokens have different values in different spaces
+        let mao_in_dynamic = MaoToken::ProgramStart.in_::<DynamicGingerSpace>();
+        let mao_in_alt = MaoToken::ProgramStart.in_::<AlternativeSpace>();
+        
+        // In DynamicGingerSpace: GingerToken(5) + MaoToken offset = 5 + 0 = 5
+        // In AlternativeSpace: MaoToken offset = 0 + 0 = 0  
+        assert_eq!(mao_in_dynamic, 5);
+        assert_eq!(mao_in_alt, 0);
+        
+        // Test filtering works correctly with different layouts
+        let tokens = vec![0, 1, 5, 6, 7];
+        
+        // In AlternativeSpace, tokens 0,1,2,3 should be MaoTokens (since MaoToken starts at offset 0)
+        let alt_maos: Vec<MaoToken> = tokens.clone().into_iter()
+            .specials::<AlternativeSpace, MaoToken>()
+            .collect();
+        // Only tokens 0,1 are present in our test vector, so we get ProgramStart, ProgramEnd
+        assert_eq!(alt_maos, vec![MaoToken::ProgramStart, MaoToken::ProgramEnd]);
+        
+        // In DynamicGingerSpace, token 5 should be MaoToken::ProgramStart
+        let dyn_maos: Vec<MaoToken> = tokens.into_iter()
+            .specials::<DynamicGingerSpace, MaoToken>()
+            .collect();
+        assert_eq!(dyn_maos, vec![MaoToken::ProgramStart, MaoToken::ProgramEnd, MaoToken::Fn]);
+    }
+
 }
