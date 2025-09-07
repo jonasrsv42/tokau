@@ -1,12 +1,12 @@
-use crate::token::{Special, Token};
+use crate::token::{NameToken, Token};
 
 pub trait Position<TokenType: Token> {
     const OFFSET: u32;
 
-    // For Special tokens - convert instance to global value
+    // For NameToken tokens - convert instance to global value
     fn value(token: &TokenType) -> u32
     where
-        TokenType: Special,
+        TokenType: NameToken,
     {
         token.value() + Self::OFFSET
     }
@@ -17,8 +17,8 @@ pub trait TokenSpace: Sized {
 
     fn count(&self) -> u32; // Total count including dynamic parts
 
-    // For Special tokens - try to convert global value back to token instance
-    fn is<T: Special>(value: u32) -> Option<T>
+    // For NameToken tokens - try to convert global value back to token instance
+    fn is<T: NameToken>(value: u32) -> Option<T>
     where
         Self: Position<T>,
         T: TryFrom<u32>,
@@ -57,7 +57,7 @@ pub trait TokenSpace: Sized {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::token::Special;
+    use crate::token::NameToken;
     use crate::token::tests::*;
 
     pub(crate) struct GingerSpace {}
@@ -89,13 +89,14 @@ pub(crate) mod tests {
 
     // Example of a dynamic token space
     pub(crate) struct DynamicGingerSpace {
-        vocab_size: u32,
+        pub(crate) vocab_size: u32,
     }
 
     impl DynamicGingerSpace {
         pub(crate) fn new(vocab_size: u32) -> Self {
             Self { vocab_size }
         }
+        
     }
 
     impl Position<MaoToken> for DynamicGingerSpace {
@@ -125,14 +126,14 @@ pub(crate) mod tests {
 
     #[test]
     fn test_accessing_tokens_in_space() {
-        assert_eq!(GingerToken::TextStart.in_::<GingerSpace>(), 0);
-        assert_eq!(MaoToken::ProgramStart.in_::<GingerSpace>(), 5);
-        assert_eq!(SingleToken::Single.in_::<GingerSpace>(), 9);
+        assert_eq!(GingerToken::TextStart.inside::<GingerSpace>(), 0);
+        assert_eq!(MaoToken::ProgramStart.inside::<GingerSpace>(), 5);
+        assert_eq!(SingleToken::Single.inside::<GingerSpace>(), 9);
 
-        let mao_fn = MaoToken::Fn.in_::<GingerSpace>();
+        let mao_fn = MaoToken::Fn.inside::<GingerSpace>();
         assert_eq!(mao_fn, 7);
 
-        let ginger_audio = GingerToken::AudioStart.in_::<GingerSpace>();
+        let ginger_audio = GingerToken::AudioStart.inside::<GingerSpace>();
         assert_eq!(ginger_audio, 2);
     }
 
@@ -203,8 +204,8 @@ pub(crate) mod tests {
     fn test_offset_calculations() {
         // Same token should have same value in both spaces (since they have same static layout)
         let mao_token = MaoToken::ProgramStart;
-        let value_space1 = mao_token.in_::<GingerSpace>();
-        let value_space2 = mao_token.in_::<DynamicGingerSpace>();
+        let value_space1 = mao_token.inside::<GingerSpace>();
+        let value_space2 = mao_token.inside::<DynamicGingerSpace>();
         assert_eq!(value_space1, value_space2);
 
         // Test that is() works correctly for both spaces
@@ -254,8 +255,8 @@ pub(crate) mod tests {
         }
 
         // Test that same tokens have different values in different spaces
-        let mao_in_dynamic = MaoToken::ProgramStart.in_::<DynamicGingerSpace>();
-        let mao_in_alt = MaoToken::ProgramStart.in_::<AlternativeSpace>();
+        let mao_in_dynamic = MaoToken::ProgramStart.inside::<DynamicGingerSpace>();
+        let mao_in_alt = MaoToken::ProgramStart.inside::<AlternativeSpace>();
 
         // In DynamicGingerSpace: GingerToken(5) + MaoToken offset = 5 + 0 = 5
         // In AlternativeSpace: MaoToken offset = 0 + 0 = 0

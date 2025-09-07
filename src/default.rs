@@ -42,16 +42,16 @@ impl<T: Token> Default for DefaultSpace<T> {
 mod tests {
     use super::*;
     use crate::ext::TokenFilter;
-    use crate::token::Special;
+    use crate::token::NameToken;
     use crate::token::tests::*;
 
     #[test]
     fn test_default_space() {
-        // Test DefaultSpace with Special tokens
-        let mao_start = MaoToken::ProgramStart.in_::<DefaultSpace<MaoToken>>();
+        // Test DefaultSpace with NameToken tokens
+        let mao_start = MaoToken::ProgramStart.inside::<DefaultSpace<MaoToken>>();
         assert_eq!(mao_start, 0); // Should be at offset 0
 
-        let mao_fn = MaoToken::Fn.in_::<DefaultSpace<MaoToken>>();
+        let mao_fn = MaoToken::Fn.inside::<DefaultSpace<MaoToken>>();
         assert_eq!(mao_fn, 2); // Direct value mapping
 
         // Test is() with DefaultSpace
@@ -66,7 +66,7 @@ mod tests {
         assert_eq!(DefaultSpace::<MaoToken>::is::<MaoToken>(4), None); // Out of range
 
         // Test with GingerToken
-        let ginger_audio = GingerToken::AudioStart.in_::<DefaultSpace<GingerToken>>();
+        let ginger_audio = GingerToken::AudioStart.inside::<DefaultSpace<GingerToken>>();
         assert_eq!(ginger_audio, 2); // Direct value mapping
 
         // Test with Range tokens
@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(DefaultSpace::<TextTokens>::to::<TextTokens>(999), Some(999));
         assert_eq!(DefaultSpace::<TextTokens>::to::<TextTokens>(1000), None); // Out of range
 
-        // Test that to() now works with Special tokens too
+        // Test that to() now works with NameToken tokens too
         assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(0), Some(0));
         assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(2), Some(2));
         assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(4), None); // Out of range
@@ -96,7 +96,7 @@ mod tests {
             ]
         );
 
-        // Test that ranges() now works with Special tokens
+        // Test that ranges() now works with NameToken tokens
         let mao_ranges: Vec<u32> = tokens
             .clone()
             .into_iter()
@@ -119,7 +119,7 @@ mod tests {
         assert_eq!(space.count(), MaoToken::COUNT + 100); // RESERVED + dynamic_size
         
         // Test static tokens still work
-        let mao_start = MaoToken::ProgramStart.in_::<DefaultSpace<MaoToken>>();
+        let mao_start = MaoToken::ProgramStart.inside::<DefaultSpace<MaoToken>>();
         assert_eq!(mao_start, 0);
         assert_eq!(DefaultSpace::<MaoToken>::is::<MaoToken>(0), Some(MaoToken::ProgramStart));
         

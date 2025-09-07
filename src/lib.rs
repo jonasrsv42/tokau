@@ -7,4 +7,8 @@ pub mod token;
 pub use default::DefaultSpace;
 pub use ext::TokenFilter;
 pub use space::{Position, TokenSpace};
-pub use token::{Range, Special, Token};
+pub use token::{NameToken, RangeToken, Token};
+
+// Re-export derive macro when feature is enabled
+#[cfg(feature = "derive")]
+pub use tokau_derive::Name;

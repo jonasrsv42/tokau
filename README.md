@@ -26,8 +26,8 @@ Tokau provides a type-safe trait system that prevents these offset-related bugs 
 
 ### Token Types
 
-- **`Special` tokens**: Discrete tokens with specific enum values (e.g., `StartToken`, `EndToken`)
-- **`Range` tokens**: Contiguous ranges without specific instances (e.g., text vocabulary)
+- **`NameToken`**: Discrete tokens with specific enum values (e.g., `StartToken`, `EndToken`)
+- **`RangeToken`**: Contiguous ranges without specific instances (e.g., text vocabulary)
 
 ### Token Spaces
 
@@ -83,6 +83,38 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 tokau = "0.1.0"
+
+# Or from GitHub with derive macro support:
+tokau = { git = "https://github.com/jonasrsv42/tokau", features = ["derive"] }
 ```
 
-See the tests in `src/lib.rs` for comprehensive examples of defining token types, spaces, and using the filtering APIs.
+### Using the Derive Macro
+
+The `Name` derive macro automatically implements `Token`, `NameToken`, and `TryFrom<u32>` for your enums:
+
+```rust
+use tokau::{Name, NameToken, Token};
+
+#[derive(Name, Debug, Clone, Copy)]
+enum MyToken {
+    Start,
+    End,
+    Process,
+}
+
+// Automatically generates:
+// - MyToken::COUNT = 3
+// - MyToken::Start.value() = 0
+// - MyToken::End.value() = 1
+// - MyToken::Process.value() = 2
+// - TryFrom<u32> implementation
+```
+
+The derive feature is enabled by default. If you want to use tokau without the derive macro:
+
+```toml
+[dependencies]
+tokau = { git = "https://github.com/jonasrsv42/tokau", default-features = false }
+```
+
+See the tests in `tests/` for comprehensive examples of defining token types, spaces, and using the filtering APIs.

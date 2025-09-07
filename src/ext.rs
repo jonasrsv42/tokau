@@ -1,5 +1,5 @@
 use crate::space::{Position, TokenSpace};
-use crate::token::{Special, Token};
+use crate::token::{NameToken, Token};
 
 // Extension trait for filtering iterables by token type
 pub trait TokenFilter: Iterator<Item = u32> + Sized {
@@ -7,7 +7,7 @@ pub trait TokenFilter: Iterator<Item = u32> + Sized {
         self.filter_map(move |id| space.dynamic(id).map(|_| id))
     }
 
-    fn specials<S: TokenSpace, T: Special>(self) -> impl Iterator<Item = T>
+    fn specials<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
     where
         S: Position<T>,
         T: TryFrom<u32>,
@@ -83,13 +83,13 @@ mod tests {
             .clone()
             .into_iter()
             .specials::<DynamicGingerSpace, GingerToken>()
-            .map(|token| token.in_::<DynamicGingerSpace>())
+            .map(|token| token.inside::<DynamicGingerSpace>())
             .chain(
                 tokens
                     .clone()
                     .into_iter()
                     .specials::<DynamicGingerSpace, MaoToken>()
-                    .map(|token| token.in_::<DynamicGingerSpace>()),
+                    .map(|token| token.inside::<DynamicGingerSpace>()),
             )
             .collect();
         assert_eq!(all_special_tokens, vec![0, 1, 5, 6, 7, 8]);

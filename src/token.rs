@@ -5,16 +5,16 @@ pub trait Token {
 }
 
 // For discrete/reserved tokens with specific values and instances
-pub trait Special: Token + Sized {
+pub trait NameToken: Token + Sized {
     fn value(&self) -> u32;
 
-    fn in_<S: Position<Self>>(&self) -> u32 {
+    fn inside<S: Position<Self>>(&self) -> u32 {
         S::value(self)
     }
 }
 
 // For range tokens without specific instances - just represents a contiguous range
-pub trait Range: Token {
+pub trait RangeToken: Token {
     // No instances, just represents COUNT tokens as a range
 }
 
@@ -34,7 +34,7 @@ pub mod tests {
         const COUNT: u32 = 4;
     }
 
-    impl Special for MaoToken {
+    impl NameToken for MaoToken {
         fn value(&self) -> u32 {
             match self {
                 MaoToken::ProgramStart => 0,
@@ -68,7 +68,7 @@ pub mod tests {
         const COUNT: u32 = 1;
     }
 
-    impl Special for SingleToken {
+    impl NameToken for SingleToken {
         fn value(&self) -> u32 {
             0
         }
@@ -98,7 +98,7 @@ pub mod tests {
         const COUNT: u32 = 5;
     }
 
-    impl Special for GingerToken {
+    impl NameToken for GingerToken {
         fn value(&self) -> u32 {
             match self {
                 GingerToken::TextStart => 0,
@@ -132,7 +132,7 @@ pub mod tests {
         const COUNT: u32 = 1000; // 1000 text tokens
     }
 
-    impl Range for TextTokens {}
+    impl RangeToken for TextTokens {}
 
     #[test]
     fn test_token_counts() {
