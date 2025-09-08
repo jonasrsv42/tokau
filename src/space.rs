@@ -69,19 +69,18 @@ pub(crate) mod tests {
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
 
         fn decode(id: u32) -> Option<Self> {
-            if let Some(token) = Self::is::<GingerToken>(id) {
-                return Some(GingerSpace::Ginger(token));
+            // Match-based approach - compiler can optimize to jump table
+            match id {
+                // GingerToken range: 0..5
+                0..=4 => GingerToken::try_from(id).ok().map(GingerSpace::Ginger),
+                // MaoToken range: 5..9
+                5..=8 => MaoToken::try_from(id - 5).ok().map(GingerSpace::Mao),
+                // SingleToken range: 9..10
+                9 => SingleToken::try_from(id - 9).ok().map(GingerSpace::Single),
+                // TextTokens range: 10..1010
+                10..=1009 => TextTokens::try_from(id - 10).ok().map(GingerSpace::Text),
+                _ => None,
             }
-            if let Some(token) = Self::is::<MaoToken>(id) {
-                return Some(GingerSpace::Mao(token));
-            }
-            if let Some(token) = Self::is::<SingleToken>(id) {
-                return Some(GingerSpace::Single(token));
-            }
-            if let Some(token) = Self::is::<TextTokens>(id) {
-                return Some(GingerSpace::Text(token));
-            }
-            None
         }
     }
 

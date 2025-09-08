@@ -151,10 +151,18 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         quote! { #(#counts)+* }
     };
 
-    // Generate decode method implementation
+    // Generate decode method implementation - use is<T>() for simplicity and correctness
+    // TODO: Optimize this to generate efficient jump-table with match statement and literal range bounds
+    // Current approach uses multiple is<T>() calls which do redundant offset calculations.
+    // Ideal approach would be: match id { 0..=4 => ..., 5..=8 => ..., ... }
+    // Challenge: Rust requires literal constants in pattern ranges, not expressions like `OFFSET + COUNT`
+    // Possible solutions:
+    // - Use const evaluation tricks or const blocks to compute bounds at compile time
+    // - Generate numeric literals by evaluating token counts during macro expansion
+    // - Hybrid approach with both current fallback and optimized match version
     let mut decode_arms = Vec::new();
 
-    // Add arms for each token type - use is<T> for all types
+    // Add arms for each token type using is<T>() calls
     for (variant, token_type) in variants.iter().zip(&token_types) {
         let is_dynamic = variant
             .attrs
