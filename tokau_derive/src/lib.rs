@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, LitInt, parse_macro_input};
+use syn::{Data, DeriveInput, Fields, LitInt, Type, parse_macro_input};
 
 // Attribute macro for cleaner syntax: #[range(1000)]
 #[proc_macro_attribute]
@@ -47,6 +47,153 @@ pub fn range(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics ::tokau::RangeToken for #name #ty_generics #where_clause {}
+
+        impl #impl_generics TryFrom<u32> for #name #ty_generics #where_clause {
+            type Error = ();
+
+            fn try_from(offset: u32) -> Result<Self, Self::Error> {
+                if offset < #count {
+                    Ok(#name(offset))
+                } else {
+                    Err(())
+                }
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro_derive(Space, attributes(dynamic))]
+pub fn derive_space(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let name = &input.ident;
+
+    // Must be an enum
+    let variants = match &input.data {
+        Data::Enum(data_enum) => &data_enum.variants,
+        _ => {
+            return syn::Error::new_spanned(name, "Space can only be derived for enums")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    // Collect token types and check for dynamic variant
+    let mut token_types = Vec::new();
+    let mut dynamic_field = None;
+
+    for variant in variants {
+        // Check if this is the dynamic variant
+        let is_dynamic = variant
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("dynamic"));
+
+        if is_dynamic {
+            if dynamic_field.is_some() {
+                return syn::Error::new_spanned(
+                    &variant.ident,
+                    "Only one variant can be marked as #[dynamic]",
+                )
+                .to_compile_error()
+                .into();
+            }
+            dynamic_field = Some(variant.ident.clone());
+        } else {
+            // Extract the token type from the variant
+            match &variant.fields {
+                Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                    if let Some(field) = fields.unnamed.first() {
+                        if let Type::Path(type_path) = &field.ty {
+                            token_types.push(type_path.path.clone());
+                        }
+                    }
+                }
+                _ => {
+                    return syn::Error::new_spanned(
+                        &variant.ident,
+                        "Space enum variants must have exactly one unnamed field",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+        }
+    }
+
+    // Generate Position implementations
+    let mut position_impls = Vec::new();
+    let mut offset_expr = quote! { 0 };
+
+    for token_type in &token_types {
+        position_impls.push(quote! {
+            impl Position<#token_type> for #name {
+                const OFFSET: u32 = #offset_expr;
+            }
+        });
+
+        // Update offset for next type
+        offset_expr = quote! { #offset_expr + <#token_type as ::tokau::Token>::COUNT };
+    }
+
+    // Calculate RESERVED
+    let reserved_expr = if token_types.is_empty() {
+        quote! { 0 }
+    } else {
+        let counts: Vec<_> = token_types
+            .iter()
+            .map(|t| {
+                quote! { <#t as ::tokau::Token>::COUNT }
+            })
+            .collect();
+        quote! { #(#counts)+* }
+    };
+
+    // Generate decode method implementation
+    let mut decode_arms = Vec::new();
+
+    // Add arms for each token type - use is<T> for all types
+    for (variant, token_type) in variants.iter().zip(&token_types) {
+        let is_dynamic = variant
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("dynamic"));
+        if !is_dynamic {
+            let variant_name = &variant.ident;
+            decode_arms.push(quote! {
+                if let Some(token) = Self::is::<#token_type>(id) {
+                    return Some(#name::#variant_name(token));
+                }
+            });
+        }
+    }
+
+    // Add dynamic variant if present
+    if let Some(dynamic_variant) = &dynamic_field {
+        decode_arms.push(quote! {
+            if let Some(offset) = Self::dynamic(id) {
+                return Some(#name::#dynamic_variant(offset));
+            }
+        });
+    }
+
+    let decode_impl = quote! {
+        fn decode(id: u32) -> Option<Self> {
+            #(#decode_arms)*
+            None
+        }
+    };
+
+    let expanded = quote! {
+        #(#position_impls)*
+
+        impl ::tokau::TokenSpace for #name {
+            const RESERVED: u32 = #reserved_expr;
+
+            #decode_impl
+        }
     };
 
     TokenStream::from(expanded)

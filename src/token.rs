@@ -128,6 +128,7 @@ pub mod tests {
     }
 
     // Example Range token
+    #[derive(Debug, PartialEq)]
     pub struct TextTokens;
 
     impl Token for TextTokens {
@@ -135,6 +136,12 @@ pub mod tests {
     }
 
     impl RangeToken for TextTokens {}
+
+    impl From<u32> for TextTokens {
+        fn from(_offset: u32) -> Self {
+            TextTokens
+        }
+    }
 
     #[test]
     fn test_token_counts() {

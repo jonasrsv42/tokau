@@ -15,10 +15,11 @@ pub trait Position<TokenType: Token> {
 pub trait TokenSpace: Sized {
     const RESERVED: u32; // Fixed/static part of the token space
 
-    fn count(&self) -> u32; // Total count including dynamic parts
+    // Decode a u32 token ID back to the enum variant
+    fn decode(id: u32) -> Option<Self>;
 
     // For NameToken tokens - try to convert global value back to token instance
-    fn is<T: NameToken>(value: u32) -> Option<T>
+    fn is<T: Token>(value: u32) -> Option<T>
     where
         Self: Position<T>,
         T: TryFrom<u32>,
@@ -27,20 +28,9 @@ pub trait TokenSpace: Sized {
         value.checked_sub(start).and_then(|v| T::try_from(v).ok())
     }
 
-    // Check if value is in token range and return offset
-    fn to<T: Token>(value: u32) -> Option<u32>
-    where
-        Self: Position<T>,
-    {
-        let start = <Self as Position<T>>::OFFSET;
-        value.checked_sub(start).filter(|&v| v < T::COUNT)
-    }
-
     // For dynamic part - check if value is in dynamic part and return offset
-    fn dynamic(&self, value: u32) -> Option<u32> {
-        value
-            .checked_sub(Self::RESERVED)
-            .filter(|&v| v < self.count() - Self::RESERVED)
+    fn dynamic(value: u32) -> Option<u32> {
+        value.checked_sub(Self::RESERVED)
     }
 }
 
@@ -49,8 +39,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::token::tests::*;
     use crate::token::{NameToken, RangeToken};
-
-    pub(crate) struct GingerSpace {}
 
     impl Position<MaoToken> for GingerSpace {
         const OFFSET: u32 = GingerToken::COUNT;
@@ -68,24 +56,43 @@ pub(crate) mod tests {
         const OFFSET: u32 = GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT;
     }
 
+    #[derive(Debug, PartialEq)]
+    pub(crate) enum GingerSpace {
+        Ginger(GingerToken),
+        Mao(MaoToken),
+        Single(SingleToken),
+        Text(TextTokens),
+    }
+
     impl TokenSpace for GingerSpace {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
 
-        fn count(&self) -> u32 {
-            Self::RESERVED // For now, no dynamic part
+        fn decode(id: u32) -> Option<Self> {
+            if let Some(token) = Self::is::<GingerToken>(id) {
+                return Some(GingerSpace::Ginger(token));
+            }
+            if let Some(token) = Self::is::<MaoToken>(id) {
+                return Some(GingerSpace::Mao(token));
+            }
+            if let Some(token) = Self::is::<SingleToken>(id) {
+                return Some(GingerSpace::Single(token));
+            }
+            if let Some(token) = Self::is::<TextTokens>(id) {
+                return Some(GingerSpace::Text(token));
+            }
+            None
         }
     }
 
     // Example of a dynamic token space
-    pub(crate) struct DynamicGingerSpace {
-        pub(crate) vocab_size: u32,
-    }
-
-    impl DynamicGingerSpace {
-        pub(crate) fn new(vocab_size: u32) -> Self {
-            Self { vocab_size }
-        }
+    #[derive(Debug, PartialEq)]
+    pub(crate) enum DynamicGingerSpace {
+        Ginger(GingerToken),
+        Mao(MaoToken),
+        Single(SingleToken),
+        Text(TextTokens),
+        Dynamic(u32), // Dynamic vocabulary tokens
     }
 
     impl Position<MaoToken> for DynamicGingerSpace {
@@ -108,8 +115,23 @@ pub(crate) mod tests {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
 
-        fn count(&self) -> u32 {
-            Self::RESERVED + self.vocab_size // Include dynamic vocabulary
+        fn decode(id: u32) -> Option<Self> {
+            if let Some(token) = Self::is::<GingerToken>(id) {
+                return Some(DynamicGingerSpace::Ginger(token));
+            }
+            if let Some(token) = Self::is::<MaoToken>(id) {
+                return Some(DynamicGingerSpace::Mao(token));
+            }
+            if let Some(token) = Self::is::<SingleToken>(id) {
+                return Some(DynamicGingerSpace::Single(token));
+            }
+            if let Some(token) = Self::is::<TextTokens>(id) {
+                return Some(DynamicGingerSpace::Text(token));
+            }
+            if let Some(offset) = Self::dynamic(id) {
+                return Some(DynamicGingerSpace::Dynamic(offset));
+            }
+            None
         }
     }
 
@@ -155,18 +177,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_range_tokens() {
-        // TextTokens start at offset 10 (5 + 4 + 1)
-        assert_eq!(GingerSpace::to::<TextTokens>(10), Some(0)); // First text token
-        assert_eq!(GingerSpace::to::<TextTokens>(11), Some(1)); // Second text token
-        assert_eq!(GingerSpace::to::<TextTokens>(1009), Some(999)); // Last text token
-
-        // Out of range
-        assert!(GingerSpace::to::<TextTokens>(9).is_none()); // Before range
-        assert!(GingerSpace::to::<TextTokens>(1010).is_none()); // After range
-
-        // Other token types shouldn't match as ranges
-        assert!(GingerSpace::to::<TextTokens>(5).is_none()); // MaoToken area
-
         // Test RangeToken::inside method
         assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // First position
         assert_eq!(TextTokens::inside::<GingerSpace>(1), Some(11)); // Second position
@@ -176,23 +186,16 @@ pub(crate) mod tests {
 
     #[test]
     fn test_dynamic_part() {
-        let space = DynamicGingerSpace::new(500); // 500 dynamic vocab tokens
-
-        // Check total count
-        assert_eq!(space.count(), 1010 + 500); // RESERVED + vocab_size
-
-        // Test dynamic function
-        assert_eq!(space.dynamic(1010), Some(0)); // First dynamic token
-        assert_eq!(space.dynamic(1509), Some(499)); // Last dynamic token
-        assert_eq!(space.dynamic(1510), None); // Beyond range
-        assert_eq!(space.dynamic(500), None); // In static range, not dynamic
+        // Test dynamic function (no longer needs bounds checking)
+        assert_eq!(DynamicGingerSpace::dynamic(1010), Some(0)); // First dynamic token
+        assert_eq!(DynamicGingerSpace::dynamic(1509), Some(499)); // Dynamic token at offset 499
+        assert_eq!(DynamicGingerSpace::dynamic(500), None); // In static range, not dynamic
 
         // Static tokens still work
         assert_eq!(
             DynamicGingerSpace::is::<MaoToken>(5),
             Some(MaoToken::ProgramStart)
         );
-        assert_eq!(DynamicGingerSpace::to::<TextTokens>(1009), Some(999));
     }
 
     #[test]
@@ -209,30 +212,22 @@ pub(crate) mod tests {
             DynamicGingerSpace::is::<MaoToken>(5),
             Some(MaoToken::ProgramStart)
         );
-
-        // Test range boundaries are consistent
-        assert_eq!(GingerSpace::to::<TextTokens>(10), Some(0)); // First text token
-        assert_eq!(DynamicGingerSpace::to::<TextTokens>(10), Some(0)); // Should be same
-
-        assert_eq!(GingerSpace::to::<TextTokens>(1009), Some(999)); // Last text token  
-        assert_eq!(DynamicGingerSpace::to::<TextTokens>(1009), Some(999)); // Should be same
     }
 
     #[test]
     fn test_different_space_layouts() {
-        // Create a space with different offset layout
-        struct AlternativeSpace;
+        use crate::space::{Position, TokenSpace};
 
-        impl TokenSpace for AlternativeSpace {
-            const RESERVED: u32 =
-                MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT + TextTokens::COUNT;
-
-            fn count(&self) -> u32 {
-                Self::RESERVED
-            }
+        // Create a space with different offset layout using Space derive macro
+        #[derive(Debug, PartialEq)]
+        enum AlternativeSpace {
+            Mao(MaoToken),       // Different order: Mao first
+            Single(SingleToken), // Single second
+            Ginger(GingerToken), // Ginger third
+            Text(TextTokens),    // Text last
         }
 
-        // Different offset order: Mao first, Single second, Ginger third, Text last
+        // Implement Position traits for the different ordering
         impl Position<MaoToken> for AlternativeSpace {
             const OFFSET: u32 = 0; // Mao tokens at start
         }
@@ -247,6 +242,27 @@ pub(crate) mod tests {
 
         impl Position<TextTokens> for AlternativeSpace {
             const OFFSET: u32 = MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT; // Text last
+        }
+
+        impl TokenSpace for AlternativeSpace {
+            const RESERVED: u32 =
+                MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT + TextTokens::COUNT;
+
+            fn decode(id: u32) -> Option<Self> {
+                if let Some(token) = Self::is::<MaoToken>(id) {
+                    return Some(AlternativeSpace::Mao(token));
+                }
+                if let Some(token) = Self::is::<SingleToken>(id) {
+                    return Some(AlternativeSpace::Single(token));
+                }
+                if let Some(token) = Self::is::<GingerToken>(id) {
+                    return Some(AlternativeSpace::Ginger(token));
+                }
+                if let Some(token) = Self::is::<TextTokens>(id) {
+                    return Some(AlternativeSpace::Text(token));
+                }
+                None
+            }
         }
 
         // Test that same tokens have different values in different spaces

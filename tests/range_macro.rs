@@ -1,8 +1,10 @@
 use tokau::{RangeToken, Token, range};
 
+#[derive(Debug, PartialEq)]
 #[range(1000)]
 struct TextTokens(u32);
 
+#[derive(Debug, PartialEq)]
 #[range(500)]
 struct AudioTokens(u32);
 
@@ -22,25 +24,13 @@ fn test_range_macro() {
 
 #[test]
 fn test_range_token_inside() {
-    use tokau::{Position, TokenSpace};
+    use tokau::{Position, Space};
 
-    // Define a simple space for testing
-    struct TestSpace;
-
-    impl Position<TextTokens> for TestSpace {
-        const OFFSET: u32 = 0;
-    }
-
-    impl Position<AudioTokens> for TestSpace {
-        const OFFSET: u32 = 1000;
-    }
-
-    impl TokenSpace for TestSpace {
-        const RESERVED: u32 = TextTokens::COUNT + AudioTokens::COUNT;
-
-        fn count(&self) -> u32 {
-            Self::RESERVED
-        }
+    // Define a simple space for testing using Space derive macro
+    #[derive(Space, Debug, PartialEq)]
+    enum TestSpace {
+        Text(TextTokens),
+        Audio(AudioTokens),
     }
 
     // Test RangeToken::inside

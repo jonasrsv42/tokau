@@ -1,42 +1,62 @@
 use crate::space::{Position, TokenSpace};
-use crate::token::Token;
-use std::marker::PhantomData;
+use crate::token::{NameToken, RangeToken};
 
-// Default space for single token types
-pub struct DefaultSpace<T: Token> {
-    dynamic_size: u32,
-    _phantom: PhantomData<T>,
+// Create separate types to avoid conflicting implementations
+#[derive(Debug, PartialEq)]
+pub enum NameTokenSpace<T: NameToken> {
+    Token(T),
+    Dynamic(u32),
 }
 
-impl<T: Token> DefaultSpace<T> {
-    pub fn new(dynamic_size: u32) -> Self {
-        Self {
-            dynamic_size,
-            _phantom: PhantomData,
-        }
-    }
+#[derive(Debug, PartialEq)]
+pub enum RangeTokenSpace<T: RangeToken> {
+    Token(T),
+    Dynamic(u32),
 }
 
-impl<T: Token> Position<T> for DefaultSpace<T> {
+impl<T: NameToken> Position<T> for NameTokenSpace<T> {
     const OFFSET: u32 = 0;
 }
 
-impl<T: Token> TokenSpace for DefaultSpace<T> {
+impl<T: RangeToken> Position<T> for RangeTokenSpace<T> {
+    const OFFSET: u32 = 0;
+}
+
+impl<T> TokenSpace for NameTokenSpace<T>
+where
+    T: NameToken + TryFrom<u32>,
+{
     const RESERVED: u32 = T::COUNT;
 
-    fn count(&self) -> u32 {
-        Self::RESERVED + self.dynamic_size
+    fn decode(id: u32) -> Option<Self> {
+        if let Some(token) = Self::is::<T>(id) {
+            return Some(NameTokenSpace::Token(token));
+        }
+        if let Some(offset) = Self::dynamic(id) {
+            return Some(NameTokenSpace::Dynamic(offset));
+        }
+        None
     }
 }
 
-impl<T: Token> Default for DefaultSpace<T> {
-    fn default() -> Self {
-        Self {
-            dynamic_size: 0,
-            _phantom: PhantomData,
+impl<T> TokenSpace for RangeTokenSpace<T>
+where
+    T: RangeToken + From<u32>,
+{
+    const RESERVED: u32 = T::COUNT;
+
+    fn decode(id: u32) -> Option<Self> {
+        if let Some(token) = Self::is::<T>(id) {
+            return Some(RangeTokenSpace::Token(token));
         }
+        if let Some(offset) = Self::dynamic(id) {
+            return Some(RangeTokenSpace::Dynamic(offset));
+        }
+        None
     }
 }
+
+// Remove Default implementation - doesn't make sense for enum without knowing which variant to use
 
 #[cfg(test)]
 mod tests {
@@ -47,44 +67,34 @@ mod tests {
 
     #[test]
     fn test_default_space() {
-        // Test DefaultSpace with NameToken tokens
-        let mao_start = MaoToken::ProgramStart.inside::<DefaultSpace<MaoToken>>();
+        // Test NameTokenSpace with NameToken tokens
+        let mao_start = MaoToken::ProgramStart.inside::<NameTokenSpace<MaoToken>>();
         assert_eq!(mao_start, 0); // Should be at offset 0
 
-        let mao_fn = MaoToken::Fn.inside::<DefaultSpace<MaoToken>>();
+        let mao_fn = MaoToken::Fn.inside::<NameTokenSpace<MaoToken>>();
         assert_eq!(mao_fn, 2); // Direct value mapping
 
-        // Test is() with DefaultSpace
+        // Test is() with NameTokenSpace
         assert_eq!(
-            DefaultSpace::<MaoToken>::is::<MaoToken>(0),
+            NameTokenSpace::<MaoToken>::is::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
         assert_eq!(
-            DefaultSpace::<MaoToken>::is::<MaoToken>(3),
+            NameTokenSpace::<MaoToken>::is::<MaoToken>(3),
             Some(MaoToken::Struct)
         );
-        assert_eq!(DefaultSpace::<MaoToken>::is::<MaoToken>(4), None); // Out of range
+        assert_eq!(NameTokenSpace::<MaoToken>::is::<MaoToken>(4), None); // Out of range
 
         // Test with GingerToken
-        let ginger_audio = GingerToken::AudioStart.inside::<DefaultSpace<GingerToken>>();
+        let ginger_audio = GingerToken::AudioStart.inside::<NameTokenSpace<GingerToken>>();
         assert_eq!(ginger_audio, 2); // Direct value mapping
 
-        // Test with Range tokens
-        assert_eq!(DefaultSpace::<TextTokens>::to::<TextTokens>(0), Some(0));
-        assert_eq!(DefaultSpace::<TextTokens>::to::<TextTokens>(999), Some(999));
-        assert_eq!(DefaultSpace::<TextTokens>::to::<TextTokens>(1000), None); // Out of range
-
-        // Test that to() now works with NameToken tokens too
-        assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(0), Some(0));
-        assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(2), Some(2));
-        assert_eq!(DefaultSpace::<MaoToken>::to::<MaoToken>(4), None); // Out of range
-
-        // Test filtering with DefaultSpace
+        // Test filtering with NameTokenSpace
         let tokens = vec![0, 1, 2, 3, 4, 5];
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .specials::<DefaultSpace<MaoToken>, MaoToken>()
+            .is::<NameTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -96,41 +106,26 @@ mod tests {
             ]
         );
 
-        // Test that ranges() now works with NameToken tokens
-        let mao_ranges: Vec<u32> = tokens
-            .clone()
-            .into_iter()
-            .ranges::<DefaultSpace<MaoToken>, MaoToken>()
-            .collect();
-        assert_eq!(mao_ranges, vec![0, 1, 2, 3]); // All valid MaoToken IDs
-
-        // Test that DefaultSpace has no dynamic part (only static tokens) by default
-        let space = DefaultSpace::<MaoToken>::default();
-        assert_eq!(space.dynamic(0), None);
-        assert_eq!(space.dynamic(100), None);
+        // Test that NameTokenSpace dynamic method works without bounds
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(0), None); // In static range
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(4), Some(0)); // First dynamic position
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(100), Some(96)); // Dynamic position 96
     }
 
     #[test]
     fn test_default_space_with_dynamic_tokens() {
-        // Test DefaultSpace with dynamic tokens
-        let space = DefaultSpace::<MaoToken>::new(100); // 100 dynamic tokens
-
-        // Check total count
-        assert_eq!(space.count(), MaoToken::COUNT + 100); // RESERVED + dynamic_size
-
         // Test static tokens still work
-        let mao_start = MaoToken::ProgramStart.inside::<DefaultSpace<MaoToken>>();
+        let mao_start = MaoToken::ProgramStart.inside::<NameTokenSpace<MaoToken>>();
         assert_eq!(mao_start, 0);
         assert_eq!(
-            DefaultSpace::<MaoToken>::is::<MaoToken>(0),
+            NameTokenSpace::<MaoToken>::is::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
 
-        // Test dynamic tokens
-        assert_eq!(space.dynamic(4), Some(0)); // First dynamic token (after 4 static MaoTokens)
-        assert_eq!(space.dynamic(103), Some(99)); // Last dynamic token
-        assert_eq!(space.dynamic(104), None); // Beyond range
-        assert_eq!(space.dynamic(2), None); // In static range, not dynamic
+        // Test dynamic tokens (no bounds checking now)
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(4), Some(0)); // First dynamic token
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(103), Some(99)); // Dynamic token at offset 99
+        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(2), None); // In static range, not dynamic
 
         // Test filtering with dynamic tokens
         let tokens = vec![0, 1, 2, 3, 4, 5, 50, 103, 104, 200];
@@ -139,7 +134,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .specials::<DefaultSpace<MaoToken>, MaoToken>()
+            .is::<NameTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -151,8 +146,11 @@ mod tests {
             ]
         );
 
-        // Filter dynamic tokens
-        let dynamic_tokens: Vec<u32> = tokens.into_iter().dynamics(&space).collect();
-        assert_eq!(dynamic_tokens, vec![4, 5, 50, 103]); // Only tokens in dynamic range
+        // Filter dynamic tokens (no longer bounded by count)
+        let dynamic_tokens: Vec<u32> = tokens
+            .into_iter()
+            .dynamics::<NameTokenSpace<MaoToken>>()
+            .collect();
+        assert_eq!(dynamic_tokens, vec![4, 5, 50, 103, 104, 200]); // All tokens >= RESERVED
     }
 }

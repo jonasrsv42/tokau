@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, Token, TokenSpace};
+use tokau::{Name, NameToken, Position, Space, TokenSpace};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]
@@ -17,31 +17,15 @@ enum DataToken {
     Delete,
 }
 
-// Define a custom token space
-struct MyTokenSpace {
-    dynamic_count: u32,
-}
-
-impl Position<ControlToken> for MyTokenSpace {
-    const OFFSET: u32 = 0;
-}
-
-impl Position<DataToken> for MyTokenSpace {
-    const OFFSET: u32 = ControlToken::COUNT;
-}
-
-impl TokenSpace for MyTokenSpace {
-    const RESERVED: u32 = ControlToken::COUNT + DataToken::COUNT;
-
-    fn count(&self) -> u32 {
-        Self::RESERVED + self.dynamic_count
-    }
+// Define a custom token space using the Space derive macro
+#[derive(Space, Debug, PartialEq)]
+enum MyTokenSpace {
+    Control(ControlToken),
+    Data(DataToken),
 }
 
 #[test]
 fn test_token_space_with_derived_tokens() {
-    let space = MyTokenSpace { dynamic_count: 100 };
-
     // Test ControlToken positions
     assert_eq!(ControlToken::Start.inside::<MyTokenSpace>(), 0);
     assert_eq!(ControlToken::Stop.inside::<MyTokenSpace>(), 1);
@@ -68,19 +52,34 @@ fn test_token_space_with_derived_tokens() {
     assert_eq!(MyTokenSpace::is::<DataToken>(6), Some(DataToken::Delete));
     assert_eq!(MyTokenSpace::is::<DataToken>(7), None); // Out of DataToken range
 
-    // Test total space count
-    assert_eq!(space.count(), 107); // 4 + 3 + 100
+    // Test static values
     assert_eq!(MyTokenSpace::RESERVED, 7); // 4 + 3
+
+    // Test decode method
+    assert_eq!(
+        MyTokenSpace::decode(0),
+        Some(MyTokenSpace::Control(ControlToken::Start))
+    );
+    assert_eq!(
+        MyTokenSpace::decode(3),
+        Some(MyTokenSpace::Control(ControlToken::Resume))
+    );
+    assert_eq!(
+        MyTokenSpace::decode(4),
+        Some(MyTokenSpace::Data(DataToken::Read))
+    );
+    assert_eq!(
+        MyTokenSpace::decode(6),
+        Some(MyTokenSpace::Data(DataToken::Delete))
+    );
+    assert_eq!(MyTokenSpace::decode(7), None); // Out of range
 }
 
 #[test]
 fn test_dynamic_tokens_with_derived() {
-    let space = MyTokenSpace { dynamic_count: 50 };
-
-    // Test dynamic token range
-    assert_eq!(space.dynamic(0), None); // Control token
-    assert_eq!(space.dynamic(6), None); // Data token
-    assert_eq!(space.dynamic(7), Some(0)); // First dynamic token
-    assert_eq!(space.dynamic(56), Some(49)); // Last dynamic token
-    assert_eq!(space.dynamic(57), None); // Out of range
+    // Test dynamic token range (no bounds checking)
+    assert_eq!(MyTokenSpace::dynamic(0), None); // Control token
+    assert_eq!(MyTokenSpace::dynamic(6), None); // Data token
+    assert_eq!(MyTokenSpace::dynamic(7), Some(0)); // First dynamic token
+    assert_eq!(MyTokenSpace::dynamic(56), Some(49)); // Dynamic token at offset 49
 }
