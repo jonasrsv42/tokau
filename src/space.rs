@@ -198,6 +198,73 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_is_with_range_tokens() {
+        // Test is<T>() with RangeToken types (TextTokens)
+
+        // Valid TextTokens in range [10, 1009]
+        assert_eq!(GingerSpace::is::<TextTokens>(10), Some(TextTokens(0))); // First text token
+        assert_eq!(GingerSpace::is::<TextTokens>(100), Some(TextTokens(90))); // Middle text token
+        assert_eq!(GingerSpace::is::<TextTokens>(1009), Some(TextTokens(999))); // Last text token
+
+        // Out of range - should return None
+        assert_eq!(GingerSpace::is::<TextTokens>(9), None); // Before range
+        assert_eq!(GingerSpace::is::<TextTokens>(1010), None); // After range
+        assert_eq!(GingerSpace::is::<TextTokens>(0), None); // In GingerToken range
+        assert_eq!(GingerSpace::is::<TextTokens>(5), None); // In MaoToken range
+
+        // Test with DynamicGingerSpace too
+        assert_eq!(
+            DynamicGingerSpace::is::<TextTokens>(10),
+            Some(TextTokens(0))
+        );
+        assert_eq!(
+            DynamicGingerSpace::is::<TextTokens>(1009),
+            Some(TextTokens(999))
+        );
+        assert_eq!(DynamicGingerSpace::is::<TextTokens>(1010), None); // In dynamic range
+    }
+
+    #[test]
+    fn test_decode_with_range_tokens() {
+        // Test decode() method specifically for RangeToken types
+
+        // TextTokens decoding in GingerSpace
+        assert_eq!(
+            GingerSpace::decode(10),
+            Some(GingerSpace::Text(TextTokens(0)))
+        );
+        assert_eq!(
+            GingerSpace::decode(100),
+            Some(GingerSpace::Text(TextTokens(90)))
+        );
+        assert_eq!(
+            GingerSpace::decode(1009),
+            Some(GingerSpace::Text(TextTokens(999)))
+        );
+
+        // Out of range should return None
+        assert_eq!(GingerSpace::decode(1010), None);
+
+        // Test DynamicGingerSpace with both static and dynamic ranges
+        assert_eq!(
+            DynamicGingerSpace::decode(10),
+            Some(DynamicGingerSpace::Text(TextTokens(0)))
+        );
+        assert_eq!(
+            DynamicGingerSpace::decode(1009),
+            Some(DynamicGingerSpace::Text(TextTokens(999)))
+        );
+        assert_eq!(
+            DynamicGingerSpace::decode(1010),
+            Some(DynamicGingerSpace::Dynamic(0))
+        ); // First dynamic
+        assert_eq!(
+            DynamicGingerSpace::decode(2000),
+            Some(DynamicGingerSpace::Dynamic(990))
+        ); // Dynamic token
+    }
+
+    #[test]
     fn test_offset_calculations() {
         // Same token should have same value in both spaces (since they have same static layout)
         let mao_token = MaoToken::ProgramStart;

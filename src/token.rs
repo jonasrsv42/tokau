@@ -129,7 +129,7 @@ pub mod tests {
 
     // Example Range token
     #[derive(Debug, PartialEq)]
-    pub struct TextTokens;
+    pub struct TextTokens(pub u32);
 
     impl Token for TextTokens {
         const COUNT: u32 = 1000; // 1000 text tokens
@@ -137,9 +137,15 @@ pub mod tests {
 
     impl RangeToken for TextTokens {}
 
-    impl From<u32> for TextTokens {
-        fn from(_offset: u32) -> Self {
-            TextTokens
+    impl TryFrom<u32> for TextTokens {
+        type Error = ();
+
+        fn try_from(offset: u32) -> Result<Self, Self::Error> {
+            if offset < Self::COUNT {
+                Ok(TextTokens(offset))
+            } else {
+                Err(())
+            }
         }
     }
 
