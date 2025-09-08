@@ -68,15 +68,20 @@ mod tests {
         let ginger_audio = DefaultTokenSpace::<GingerToken>::position_of(GingerToken::AudioStart);
         assert_eq!(ginger_audio, 2); // Direct value mapping
 
-        // Test filtering with NameTokenSpace
+        // Test filtering with DefaultTokenSpace
         let tokens = vec![0, 1, 2, 3, 4, 5];
-        let mao_tokens: Vec<MaoToken> = tokens
+        let decoded_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .try_as::<DefaultTokenSpace<MaoToken>, MaoToken>()
+            .decode::<DefaultTokenSpace<MaoToken>>()
+            .filter_map(Result::ok)
+            .filter_map(|space_token| match space_token {
+                DefaultTokenSpace::Token(mao) => Some(mao),
+                _ => None,
+            })
             .collect();
         assert_eq!(
-            mao_tokens,
+            decoded_tokens,
             vec![
                 MaoToken::ProgramStart,
                 MaoToken::ProgramEnd,
@@ -109,11 +114,21 @@ mod tests {
         // Test filtering with dynamic tokens
         let tokens = vec![0, 1, 2, 3, 4, 5, 50, 103, 104, 200];
 
-        // Filter static tokens
-        let mao_tokens: Vec<MaoToken> = tokens
+        // Decode tokens and extract MaoTokens
+        let decoded: Vec<DefaultTokenSpace<MaoToken>> = tokens
             .clone()
             .into_iter()
-            .try_as::<DefaultTokenSpace<MaoToken>, MaoToken>()
+            .decode::<DefaultTokenSpace<MaoToken>>()
+            .filter_map(Result::ok)
+            .collect();
+
+        // Extract static MaoTokens
+        let mao_tokens: Vec<MaoToken> = decoded
+            .into_iter()
+            .filter_map(|space_token| match space_token {
+                DefaultTokenSpace::Token(mao) => Some(mao),
+                _ => None,
+            })
             .collect();
         assert_eq!(
             mao_tokens,

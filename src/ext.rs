@@ -1,19 +1,16 @@
 use crate::error::TokauError;
-use crate::space::{Position, TokenSpace};
-use crate::token::Token;
+use crate::space::TokenSpace;
 
 // Extension trait for filtering iterables by token type
 pub trait TokenFilter: Iterator<Item = u32> + Sized {
+    /// Filter to remainder values of dynamic tokens (tokens >= RESERVED)
     fn remainders<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
         self.filter_map(|id| S::remainder(id))
     }
 
-    fn try_as<S: TokenSpace, T: Token>(self) -> impl Iterator<Item = T>
-    where
-        S: Position<T>,
-        T: TryFrom<u32, Error = TokauError>,
-    {
-        self.filter_map(|id| S::try_as::<T>(id))
+    /// Decode token IDs to space tokens, returning Result for each conversion
+    fn decode<S: TokenSpace>(self) -> impl Iterator<Item = Result<S, TokauError>> {
+        self.map(|id| S::try_from(id))
     }
 }
 
@@ -38,11 +35,26 @@ mod tests {
             .collect();
         assert_eq!(remainder_values, vec![0, 1, 190, 590]); // Remainder values (token_id - RESERVED)
 
-        // Filter to only MaoTokens (returns actual token instances)
-        let mao_tokens: Vec<MaoToken> = tokens
+        // Decode all tokens to DynamicGingerSpace
+        let decoded: Vec<Result<DynamicGingerSpace, TokauError>> = tokens
             .clone()
             .into_iter()
-            .try_as::<DynamicGingerSpace, MaoToken>()
+            .decode::<DynamicGingerSpace>()
+            .collect();
+
+        // Check successful decodings
+        let successful_decodings: Vec<DynamicGingerSpace> =
+            decoded.into_iter().filter_map(Result::ok).collect();
+
+        assert_eq!(successful_decodings.len(), 10); // All tokens should decode successfully
+
+        // Check that we can extract MaoTokens from the decoded results
+        let mao_tokens: Vec<MaoToken> = successful_decodings
+            .into_iter()
+            .filter_map(|space_token| match space_token {
+                DynamicGingerSpace::Mao(mao) => Some(mao),
+                _ => None,
+            })
             .collect();
         assert_eq!(
             mao_tokens,
@@ -67,27 +79,32 @@ mod tests {
             .collect();
         assert_eq!(stacked, vec![0, 90, 190]);
 
-        // Chain different filters
-        let all_special_tokens: Vec<u32> = tokens
+        // Test decode with filtering for specific token types
+        let decoded_tokens: Vec<DynamicGingerSpace> = tokens
             .clone()
             .into_iter()
-            .try_as::<DynamicGingerSpace, GingerToken>()
-            .map(|token| DynamicGingerSpace::position_of(token))
-            .chain(
-                tokens
-                    .clone()
-                    .into_iter()
-                    .try_as::<DynamicGingerSpace, MaoToken>()
-                    .map(|token| DynamicGingerSpace::position_of(token)),
-            )
+            .decode::<DynamicGingerSpace>()
+            .filter_map(Result::ok)
             .collect();
-        assert_eq!(all_special_tokens, vec![0, 1, 5, 6, 7, 8]);
 
-        // Filter and then count
+        // Extract positions of GingerTokens and MaoTokens
+        let special_token_positions: Vec<u32> = decoded_tokens
+            .into_iter()
+            .filter_map(|space_token| match space_token {
+                DynamicGingerSpace::Ginger(ginger) => Some(DynamicGingerSpace::position_of(ginger)),
+                DynamicGingerSpace::Mao(mao) => Some(DynamicGingerSpace::position_of(mao)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(special_token_positions, vec![0, 1, 5, 6, 7, 8]);
+
+        // Filter, decode, and count MaoTokens
         let mao_count = tokens
             .clone()
             .into_iter()
-            .try_as::<DynamicGingerSpace, MaoToken>()
+            .decode::<DynamicGingerSpace>()
+            .filter_map(Result::ok)
+            .filter(|space_token| matches!(space_token, DynamicGingerSpace::Mao(_)))
             .count();
         assert_eq!(mao_count, 4); // ProgramStart, ProgramEnd, Fn, Struct
     }
@@ -111,11 +128,23 @@ mod tests {
             .collect();
         assert_eq!(remainder_values, vec![990, 1990, 2990]); // Remainder values (token_id - RESERVED)
 
-        let no_names: Vec<MaoToken> = out_of_range
+        // These should all decode successfully as Dynamic tokens
+        let decoded_out_of_range: Vec<Result<DynamicGingerSpace, TokauError>> = out_of_range
             .into_iter()
-            .try_as::<DynamicGingerSpace, MaoToken>()
+            .decode::<DynamicGingerSpace>()
             .collect();
-        assert_eq!(no_names, vec![]);
+
+        // All should be successful Dynamic tokens
+        let successful_dynamic: Vec<DynamicGingerSpace> = decoded_out_of_range
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect();
+        assert_eq!(successful_dynamic.len(), 3);
+
+        // All should be Dynamic variants
+        for token in successful_dynamic {
+            assert!(matches!(token, DynamicGingerSpace::Dynamic(_)));
+        }
 
         // Boundary cases
         let boundary = vec![1009, 1010, 1509, 1510]; // Last static, first dynamic, dynamic tokens
