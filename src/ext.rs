@@ -5,7 +5,7 @@ use crate::token::Token;
 // Extension trait for filtering iterables by token type
 pub trait TokenFilter: Iterator<Item = u32> + Sized {
     fn remainders<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
-        self.filter_map(|id| S::remainder(id).map(|_| id))
+        self.filter_map(|id| S::remainder(id))
     }
 
     fn try_as<S: TokenSpace, T: Token>(self) -> impl Iterator<Item = T>
@@ -30,13 +30,13 @@ mod tests {
     fn test_token_filter_extension() {
         let tokens: Vec<u32> = vec![0, 5, 6, 7, 10, 50, 1010, 1011, 1200, 1600];
 
-        // Filter to only dynamic tokens (no bounds checking now)
-        let dynamic_tokens: Vec<u32> = tokens
+        // Filter to remainder values of dynamic tokens
+        let remainder_values: Vec<u32> = tokens
             .clone()
             .into_iter()
             .remainders::<DynamicGingerSpace>()
             .collect();
-        assert_eq!(dynamic_tokens, vec![1010, 1011, 1200, 1600]); // All tokens >= RESERVED
+        assert_eq!(remainder_values, vec![0, 1, 190, 590]); // Remainder values (token_id - RESERVED)
 
         // Filter to only MaoTokens (returns actual token instances)
         let mao_tokens: Vec<MaoToken> = tokens
@@ -58,14 +58,14 @@ mod tests {
     fn test_stacking_operations() {
         let tokens: Vec<u32> = vec![0, 1, 5, 6, 7, 8, 9, 10, 50, 1010, 1100, 1200, 1500, 2000];
 
-        // Stack operations: first filter to dynamic, then take only first 3
+        // Stack operations: first filter to remainder values, then take only first 3
         let stacked: Vec<u32> = tokens
             .clone()
             .into_iter()
             .remainders::<DynamicGingerSpace>()
             .take(3)
             .collect();
-        assert_eq!(stacked, vec![1010, 1100, 1200]);
+        assert_eq!(stacked, vec![0, 90, 190]);
 
         // Chain different filters
         let all_special_tokens: Vec<u32> = tokens
@@ -104,12 +104,12 @@ mod tests {
 
         // All tokens in dynamic range (no upper bounds)
         let out_of_range = vec![2000, 3000, 4000];
-        let no_dynamics: Vec<u32> = out_of_range
+        let remainder_values: Vec<u32> = out_of_range
             .clone()
             .into_iter()
             .remainders::<DynamicGingerSpace>()
             .collect();
-        assert_eq!(no_dynamics, vec![2000, 3000, 4000]); // All tokens >= RESERVED
+        assert_eq!(remainder_values, vec![990, 1990, 2990]); // Remainder values (token_id - RESERVED)
 
         let no_names: Vec<MaoToken> = out_of_range
             .into_iter()
@@ -118,12 +118,12 @@ mod tests {
         assert_eq!(no_names, vec![]);
 
         // Boundary cases
-        let boundary = vec![1009, 1010, 1509, 1510]; // Last static, first tail, last tail, out of range
-        let dynamic_boundary: Vec<u32> = boundary
+        let boundary = vec![1009, 1010, 1509, 1510]; // Last static, first dynamic, dynamic tokens
+        let remainder_boundary: Vec<u32> = boundary
             .clone()
             .into_iter()
             .remainders::<DynamicGingerSpace>()
             .collect();
-        assert_eq!(dynamic_boundary, vec![1010, 1509, 1510]); // All dynamic tokens (no bounds checking)
+        assert_eq!(remainder_boundary, vec![0, 499, 500]); // Remainder values (excluding 1009 which is static)
     }
 }

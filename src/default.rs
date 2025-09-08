@@ -125,11 +125,11 @@ mod tests {
             ]
         );
 
-        // Filter dynamic tokens (no longer bounded by count)
-        let dynamic_tokens: Vec<u32> = tokens
+        // Filter remainder values of dynamic tokens
+        let remainder_values: Vec<u32> = tokens
             .into_iter()
             .remainders::<DefaultTokenSpace<MaoToken>>()
             .collect();
-        assert_eq!(dynamic_tokens, vec![4, 5, 50, 103, 104, 200]); // All tokens >= RESERVED
+        assert_eq!(remainder_values, vec![0, 1, 46, 99, 100, 196]); // Remainder values (token_id - RESERVED)
     }
 }
