@@ -47,8 +47,8 @@ pub trait TokenSpace: Sized {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::token::NameToken;
     use crate::token::tests::*;
+    use crate::token::{NameToken, RangeToken};
 
     pub(crate) struct GingerSpace {}
 
@@ -166,6 +166,12 @@ pub(crate) mod tests {
 
         // Other token types shouldn't match as ranges
         assert!(GingerSpace::to::<TextTokens>(5).is_none()); // MaoToken area
+
+        // Test RangeToken::inside method
+        assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // First position
+        assert_eq!(TextTokens::inside::<GingerSpace>(1), Some(11)); // Second position
+        assert_eq!(TextTokens::inside::<GingerSpace>(999), Some(1009)); // Last position
+        assert_eq!(TextTokens::inside::<GingerSpace>(1000), None); // Out of bounds
     }
 
     #[test]

@@ -15,7 +15,17 @@ pub trait NameToken: Token + Sized {
 
 // For range tokens without specific instances - just represents a contiguous range
 pub trait RangeToken: Token {
-    // No instances, just represents COUNT tokens as a range
+    // Convert position within range to global position
+    fn inside<S: Position<Self>>(position: u32) -> Option<u32>
+    where
+        Self: Sized,
+    {
+        if position < Self::COUNT {
+            Some(S::OFFSET + position)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]

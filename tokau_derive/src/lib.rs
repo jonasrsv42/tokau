@@ -1,6 +1,56 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, parse_macro_input};
+use syn::{Data, DeriveInput, Fields, LitInt, parse_macro_input};
+
+// Attribute macro for cleaner syntax: #[range(1000)]
+#[proc_macro_attribute]
+pub fn range(args: TokenStream, input: TokenStream) -> TokenStream {
+    let count = parse_macro_input!(args as LitInt);
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let name = &input.ident;
+    let vis = &input.vis;
+    let attrs = &input.attrs;
+    let generics = &input.generics;
+
+    // Verify it's a tuple struct with single field
+    let is_valid = match &input.data {
+        Data::Struct(data_struct) => {
+            matches!(&data_struct.fields, Fields::Unnamed(fields) if fields.unnamed.len() == 1)
+        }
+        _ => false,
+    };
+
+    if !is_valid {
+        return syn::Error::new_spanned(
+            name,
+            "range can only be applied to tuple structs with a single field: struct MyTokens(u32);",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // Get the fields from the struct
+    let fields = match &input.data {
+        Data::Struct(data_struct) => &data_struct.fields,
+        _ => unreachable!(), // We already validated it's a struct
+    };
+
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let expanded = quote! {
+        #(#attrs)*
+        #vis struct #name #generics #fields;
+
+        impl #impl_generics ::tokau::Token for #name #ty_generics #where_clause {
+            const COUNT: u32 = #count;
+        }
+
+        impl #impl_generics ::tokau::RangeToken for #name #ty_generics #where_clause {}
+    };
+
+    TokenStream::from(expanded)
+}
 
 #[proc_macro_derive(Name)]
 pub fn derive_name(input: TokenStream) -> TokenStream {
