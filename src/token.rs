@@ -9,7 +9,7 @@ pub trait NameToken: Token + Sized {
     fn value(&self) -> u32;
 
     fn inside<S: Position<Self>>(&self) -> u32 {
-        S::value(self)
+        S::at(self)
     }
 }
 
@@ -23,11 +23,12 @@ pub mod tests {
     use super::*;
 
     #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u32)]
     pub enum MaoToken {
-        ProgramStart,
-        ProgramEnd,
-        Fn,
-        Struct,
+        ProgramStart = 0,
+        ProgramEnd = 1,
+        Fn = 2,
+        Struct = 3,
     }
 
     impl Token for MaoToken {
@@ -36,12 +37,7 @@ pub mod tests {
 
     impl NameToken for MaoToken {
         fn value(&self) -> u32 {
-            match self {
-                MaoToken::ProgramStart => 0,
-                MaoToken::ProgramEnd => 1,
-                MaoToken::Fn => 2,
-                MaoToken::Struct => 3,
-            }
+            *self as u32
         }
     }
 
@@ -60,8 +56,9 @@ pub mod tests {
     }
 
     #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u32)]
     pub enum SingleToken {
-        Single,
+        Single = 0,
     }
 
     impl Token for SingleToken {
@@ -70,7 +67,7 @@ pub mod tests {
 
     impl NameToken for SingleToken {
         fn value(&self) -> u32 {
-            0
+            *self as u32
         }
     }
 
@@ -86,12 +83,13 @@ pub mod tests {
     }
 
     #[derive(Debug, PartialEq, Clone, Copy)]
+    #[repr(u32)]
     pub enum GingerToken {
-        TextStart,
-        TextEnd,
-        AudioStart,
-        AudioEnd,
-        AwaitAudio,
+        TextStart = 0,
+        TextEnd = 1,
+        AudioStart = 2,
+        AudioEnd = 3,
+        AwaitAudio = 4,
     }
 
     impl Token for GingerToken {
@@ -100,13 +98,7 @@ pub mod tests {
 
     impl NameToken for GingerToken {
         fn value(&self) -> u32 {
-            match self {
-                GingerToken::TextStart => 0,
-                GingerToken::TextEnd => 1,
-                GingerToken::AudioStart => 2,
-                GingerToken::AudioEnd => 3,
-                GingerToken::AwaitAudio => 4,
-            }
+            *self as u32
         }
     }
 

@@ -3,8 +3,8 @@ use crate::token::{NameToken, Token};
 pub trait Position<TokenType: Token> {
     const OFFSET: u32;
 
-    // For NameToken tokens - convert instance to global value
-    fn value(token: &TokenType) -> u32
+    // For NameToken tokens - convert instance to global position
+    fn at(token: &TokenType) -> u32
     where
         TokenType: NameToken,
     {
@@ -24,11 +24,7 @@ pub trait TokenSpace: Sized {
         T: TryFrom<u32>,
     {
         let start = <Self as Position<T>>::OFFSET;
-        if value >= start && value < start + T::COUNT {
-            T::try_from(value - start).ok()
-        } else {
-            None
-        }
+        value.checked_sub(start).and_then(|v| T::try_from(v).ok())
     }
 
     // Check if value is in token range and return offset
@@ -37,20 +33,14 @@ pub trait TokenSpace: Sized {
         Self: Position<T>,
     {
         let start = <Self as Position<T>>::OFFSET;
-        if value >= start && value < start + T::COUNT {
-            Some(value - start) // Return offset within the range
-        } else {
-            None
-        }
+        value.checked_sub(start).filter(|&v| v < T::COUNT)
     }
 
     // For dynamic part - check if value is in dynamic part and return offset
     fn dynamic(&self, value: u32) -> Option<u32> {
-        if value >= Self::RESERVED && value < self.count() {
-            Some(value - Self::RESERVED)
-        } else {
-            None
-        }
+        value
+            .checked_sub(Self::RESERVED)
+            .filter(|&v| v < self.count() - Self::RESERVED)
     }
 }
 
@@ -96,7 +86,6 @@ pub(crate) mod tests {
         pub(crate) fn new(vocab_size: u32) -> Self {
             Self { vocab_size }
         }
-        
     }
 
     impl Position<MaoToken> for DynamicGingerSpace {

@@ -1,6 +1,7 @@
 use tokau::{Name, NameToken, Position, Token, TokenSpace};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 enum ControlToken {
     Start,
     Stop,
@@ -9,6 +10,7 @@ enum ControlToken {
 }
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 enum DataToken {
     Read,
     Write,
@@ -52,8 +54,14 @@ fn test_token_space_with_derived_tokens() {
     assert_eq!(DataToken::Delete.inside::<MyTokenSpace>(), 6);
 
     // Test reverse lookups
-    assert_eq!(MyTokenSpace::is::<ControlToken>(0), Some(ControlToken::Start));
-    assert_eq!(MyTokenSpace::is::<ControlToken>(3), Some(ControlToken::Resume));
+    assert_eq!(
+        MyTokenSpace::is::<ControlToken>(0),
+        Some(ControlToken::Start)
+    );
+    assert_eq!(
+        MyTokenSpace::is::<ControlToken>(3),
+        Some(ControlToken::Resume)
+    );
     assert_eq!(MyTokenSpace::is::<ControlToken>(4), None); // Out of ControlToken range
 
     assert_eq!(MyTokenSpace::is::<DataToken>(4), Some(DataToken::Read));

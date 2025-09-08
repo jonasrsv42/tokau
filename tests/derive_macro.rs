@@ -1,6 +1,7 @@
 use tokau::{Name, NameToken, Token};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 enum LanguageToken {
     If,
     Else,
@@ -11,6 +12,7 @@ enum LanguageToken {
 }
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 enum OperatorToken {
     Plus,
     Minus,
@@ -21,6 +23,7 @@ enum OperatorToken {
 }
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 enum SimpleToken {
     Only,
 }

@@ -96,6 +96,7 @@ The `Name` derive macro automatically implements `Token`, `NameToken`, and `TryF
 use tokau::{Name, NameToken, Token};
 
 #[derive(Name, Debug, Clone, Copy)]
+#[repr(u32)]  // Required for the Name derive macro
 enum MyToken {
     Start,
     End,
