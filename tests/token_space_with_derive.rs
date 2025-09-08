@@ -57,22 +57,22 @@ fn test_token_space_with_derived_tokens() {
 
     // Test decode method
     assert_eq!(
-        MyTokenSpace::decode(0),
+        MyTokenSpace::try_from(0).ok(),
         Some(MyTokenSpace::Control(ControlToken::Start))
     );
     assert_eq!(
-        MyTokenSpace::decode(3),
+        MyTokenSpace::try_from(3).ok(),
         Some(MyTokenSpace::Control(ControlToken::Resume))
     );
     assert_eq!(
-        MyTokenSpace::decode(4),
+        MyTokenSpace::try_from(4).ok(),
         Some(MyTokenSpace::Data(DataToken::Read))
     );
     assert_eq!(
-        MyTokenSpace::decode(6),
+        MyTokenSpace::try_from(6).ok(),
         Some(MyTokenSpace::Data(DataToken::Delete))
     );
-    assert_eq!(MyTokenSpace::decode(7), None); // Out of range
+    assert_eq!(MyTokenSpace::try_from(7).ok(), None); // Out of range
 }
 
 #[test]

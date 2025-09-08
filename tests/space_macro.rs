@@ -60,21 +60,27 @@ fn test_space_macro() {
 
     // Test decode method
     assert_eq!(
-        MySpace::decode(0),
+        MySpace::try_from(0).ok(),
         Some(MySpace::Control(ControlToken::Start))
     );
     assert_eq!(
-        MySpace::decode(1),
+        MySpace::try_from(1).ok(),
         Some(MySpace::Control(ControlToken::Stop))
     );
     assert_eq!(
-        MySpace::decode(2),
+        MySpace::try_from(2).ok(),
         Some(MySpace::Control(ControlToken::Pause))
     );
-    assert_eq!(MySpace::decode(3), Some(MySpace::Text(TextTokens(0))));
-    assert_eq!(MySpace::decode(1002), Some(MySpace::Text(TextTokens(999))));
-    assert_eq!(MySpace::decode(1003), Some(MySpace::Vocab(0)));
-    assert_eq!(MySpace::decode(2000), Some(MySpace::Vocab(997)));
+    assert_eq!(
+        MySpace::try_from(3).ok(),
+        Some(MySpace::Text(TextTokens(0)))
+    );
+    assert_eq!(
+        MySpace::try_from(1002).ok(),
+        Some(MySpace::Text(TextTokens(999)))
+    );
+    assert_eq!(MySpace::try_from(1003).ok(), Some(MySpace::Vocab(0)));
+    assert_eq!(MySpace::try_from(2000).ok(), Some(MySpace::Vocab(997)));
 }
 
 #[test]

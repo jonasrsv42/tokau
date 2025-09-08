@@ -27,32 +27,46 @@ where
     T: NameToken + TryFrom<u32>,
 {
     const RESERVED: u32 = T::COUNT;
+}
 
-    fn decode(id: u32) -> Option<Self> {
+impl<T> TryFrom<u32> for NameTokenSpace<T>
+where
+    T: NameToken + TryFrom<u32>,
+{
+    type Error = ();
+
+    fn try_from(id: u32) -> Result<Self, Self::Error> {
         if let Some(token) = Self::is::<T>(id) {
-            return Some(NameTokenSpace::Token(token));
+            return Ok(NameTokenSpace::Token(token));
         }
         if let Some(offset) = Self::remainder(id) {
-            return Some(NameTokenSpace::Dynamic(offset));
+            return Ok(NameTokenSpace::Dynamic(offset));
         }
-        None
+        Err(())
     }
 }
 
 impl<T> TokenSpace for RangeTokenSpace<T>
 where
-    T: RangeToken + From<u32>,
+    T: RangeToken + TryFrom<u32>,
 {
     const RESERVED: u32 = T::COUNT;
+}
 
-    fn decode(id: u32) -> Option<Self> {
+impl<T> TryFrom<u32> for RangeTokenSpace<T>
+where
+    T: RangeToken + TryFrom<u32>,
+{
+    type Error = ();
+
+    fn try_from(id: u32) -> Result<Self, Self::Error> {
         if let Some(token) = Self::is::<T>(id) {
-            return Some(RangeTokenSpace::Token(token));
+            return Ok(RangeTokenSpace::Token(token));
         }
         if let Some(offset) = Self::remainder(id) {
-            return Some(RangeTokenSpace::Dynamic(offset));
+            return Ok(RangeTokenSpace::Dynamic(offset));
         }
-        None
+        Err(())
     }
 }
 

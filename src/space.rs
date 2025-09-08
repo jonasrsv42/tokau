@@ -12,11 +12,8 @@ pub trait Position<TokenType: Token> {
     }
 }
 
-pub trait TokenSpace: Sized {
+pub trait TokenSpace: Sized + TryFrom<u32> {
     const RESERVED: u32; // Fixed/static part of the token space
-
-    // Decode a u32 token ID back to the enum variant
-    fn decode(id: u32) -> Option<Self>;
 
     // For NameToken tokens - try to convert global value back to token instance
     fn is<T: Token>(value: u32) -> Option<T>
@@ -68,8 +65,12 @@ pub(crate) mod tests {
     impl TokenSpace for GingerSpace {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
+    }
 
-        fn decode(id: u32) -> Option<Self> {
+    impl TryFrom<u32> for GingerSpace {
+        type Error = ();
+
+        fn try_from(id: u32) -> Result<Self, Self::Error> {
             // Match-based approach - compiler can optimize to jump table
             match id {
                 // GingerToken range: 0..5
@@ -82,6 +83,7 @@ pub(crate) mod tests {
                 10..=1009 => TextTokens::try_from(id - 10).ok().map(GingerSpace::Text),
                 _ => None,
             }
+            .ok_or(())
         }
     }
 
@@ -114,24 +116,28 @@ pub(crate) mod tests {
     impl TokenSpace for DynamicGingerSpace {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
+    }
 
-        fn decode(id: u32) -> Option<Self> {
+    impl TryFrom<u32> for DynamicGingerSpace {
+        type Error = ();
+
+        fn try_from(id: u32) -> Result<Self, Self::Error> {
             if let Some(token) = Self::is::<GingerToken>(id) {
-                return Some(DynamicGingerSpace::Ginger(token));
+                return Ok(DynamicGingerSpace::Ginger(token));
             }
             if let Some(token) = Self::is::<MaoToken>(id) {
-                return Some(DynamicGingerSpace::Mao(token));
+                return Ok(DynamicGingerSpace::Mao(token));
             }
             if let Some(token) = Self::is::<SingleToken>(id) {
-                return Some(DynamicGingerSpace::Single(token));
+                return Ok(DynamicGingerSpace::Single(token));
             }
             if let Some(token) = Self::is::<TextTokens>(id) {
-                return Some(DynamicGingerSpace::Text(token));
+                return Ok(DynamicGingerSpace::Text(token));
             }
             if let Some(offset) = Self::remainder(id) {
-                return Some(DynamicGingerSpace::Dynamic(offset));
+                return Ok(DynamicGingerSpace::Dynamic(offset));
             }
-            None
+            Err(())
         }
     }
 
@@ -230,36 +236,36 @@ pub(crate) mod tests {
 
         // TextTokens decoding in GingerSpace
         assert_eq!(
-            GingerSpace::decode(10),
+            GingerSpace::try_from(10).ok(),
             Some(GingerSpace::Text(TextTokens(0)))
         );
         assert_eq!(
-            GingerSpace::decode(100),
+            GingerSpace::try_from(100).ok(),
             Some(GingerSpace::Text(TextTokens(90)))
         );
         assert_eq!(
-            GingerSpace::decode(1009),
+            GingerSpace::try_from(1009).ok(),
             Some(GingerSpace::Text(TextTokens(999)))
         );
 
         // Out of range should return None
-        assert_eq!(GingerSpace::decode(1010), None);
+        assert_eq!(GingerSpace::try_from(1010).ok(), None);
 
         // Test DynamicGingerSpace with both static and dynamic ranges
         assert_eq!(
-            DynamicGingerSpace::decode(10),
+            DynamicGingerSpace::try_from(10).ok(),
             Some(DynamicGingerSpace::Text(TextTokens(0)))
         );
         assert_eq!(
-            DynamicGingerSpace::decode(1009),
+            DynamicGingerSpace::try_from(1009).ok(),
             Some(DynamicGingerSpace::Text(TextTokens(999)))
         );
         assert_eq!(
-            DynamicGingerSpace::decode(1010),
+            DynamicGingerSpace::try_from(1010).ok(),
             Some(DynamicGingerSpace::Dynamic(0))
         ); // First dynamic
         assert_eq!(
-            DynamicGingerSpace::decode(2000),
+            DynamicGingerSpace::try_from(2000).ok(),
             Some(DynamicGingerSpace::Dynamic(990))
         ); // Dynamic token
     }
@@ -345,21 +351,25 @@ pub(crate) mod tests {
         impl TokenSpace for AlternativeSpace {
             const RESERVED: u32 =
                 MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT + TextTokens::COUNT;
+        }
 
-            fn decode(id: u32) -> Option<Self> {
+        impl TryFrom<u32> for AlternativeSpace {
+            type Error = ();
+
+            fn try_from(id: u32) -> Result<Self, Self::Error> {
                 if let Some(token) = Self::is::<MaoToken>(id) {
-                    return Some(AlternativeSpace::Mao(token));
+                    return Ok(AlternativeSpace::Mao(token));
                 }
                 if let Some(token) = Self::is::<SingleToken>(id) {
-                    return Some(AlternativeSpace::Single(token));
+                    return Ok(AlternativeSpace::Single(token));
                 }
                 if let Some(token) = Self::is::<GingerToken>(id) {
-                    return Some(AlternativeSpace::Ginger(token));
+                    return Ok(AlternativeSpace::Ginger(token));
                 }
                 if let Some(token) = Self::is::<TextTokens>(id) {
-                    return Some(AlternativeSpace::Text(token));
+                    return Ok(AlternativeSpace::Text(token));
                 }
-                None
+                Err(())
             }
         }
 

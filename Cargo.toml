@@ -13,7 +13,6 @@ keywords = ["llm", "tokenizer", "nlp", "tokens", "ai"]
 categories = ["text-processing", "encoding"]
 
 [dependencies]
-thiserror = "2.0.16"
 tokau_derive = { path = "tokau_derive", optional = true }
 
 [dev-dependencies]

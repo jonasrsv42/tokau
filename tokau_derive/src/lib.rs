@@ -171,8 +171,8 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         if !is_dynamic {
             let variant_name = &variant.ident;
             decode_arms.push(quote! {
-                if let Some(token) = Self::is::<#token_type>(id) {
-                    return Some(#name::#variant_name(token));
+                if let Some(token) = <#name as ::tokau::TokenSpace>::is::<#token_type>(id) {
+                    return Ok(#name::#variant_name(token));
                 }
             });
         }
@@ -181,26 +181,26 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
     // Add dynamic variant if present
     if let Some(dynamic_variant) = &dynamic_field {
         decode_arms.push(quote! {
-            if let Some(offset) = Self::remainder(id) {
-                return Some(#name::#dynamic_variant(offset));
+            if let Some(offset) = <#name as ::tokau::TokenSpace>::remainder(id) {
+                return Ok(#name::#dynamic_variant(offset));
             }
         });
     }
-
-    let decode_impl = quote! {
-        fn decode(id: u32) -> Option<Self> {
-            #(#decode_arms)*
-            None
-        }
-    };
 
     let expanded = quote! {
         #(#position_impls)*
 
         impl ::tokau::TokenSpace for #name {
             const RESERVED: u32 = #reserved_expr;
+        }
 
-            #decode_impl
+        impl TryFrom<u32> for #name {
+            type Error = ();
+
+            fn try_from(id: u32) -> Result<Self, Self::Error> {
+                #(#decode_arms)*
+                Err(())
+            }
         }
     };
 
