@@ -265,6 +265,38 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_range_token_offset_calculations() {
+        // Test that RangeToken offsets are calculated correctly when not at beginning
+
+        // In GingerSpace, TextTokens starts at offset 10:
+        // - GingerToken: 0..5 (5 tokens)
+        // - MaoToken: 5..9 (4 tokens)
+        // - SingleToken: 9..10 (1 token)
+        // - TextTokens: 10..1010 (1000 tokens)
+
+        // Test that global position correctly maps to local offset
+        assert_eq!(GingerSpace::is::<TextTokens>(10), Some(TextTokens(0))); // Global 10 -> Local 0
+        assert_eq!(GingerSpace::is::<TextTokens>(50), Some(TextTokens(40))); // Global 50 -> Local 40
+        assert_eq!(GingerSpace::is::<TextTokens>(500), Some(TextTokens(490))); // Global 500 -> Local 490
+        assert_eq!(GingerSpace::is::<TextTokens>(1000), Some(TextTokens(990))); // Global 1000 -> Local 990
+
+        // Test that local offset correctly maps to global position using inside()
+        assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // Local 0 -> Global 10
+        assert_eq!(TextTokens::inside::<GingerSpace>(40), Some(50)); // Local 40 -> Global 50
+        assert_eq!(TextTokens::inside::<GingerSpace>(490), Some(500)); // Local 490 -> Global 500 
+        assert_eq!(TextTokens::inside::<GingerSpace>(990), Some(1000)); // Local 990 -> Global 1000
+
+        // Test round-trip: global -> local -> global
+        let global_pos = 250u32;
+        if let Some(local_token) = GingerSpace::is::<TextTokens>(global_pos) {
+            assert_eq!(local_token, TextTokens(240)); // 250 - 10 = 240
+            if let Some(back_to_global) = TextTokens::inside::<GingerSpace>(local_token.0) {
+                assert_eq!(back_to_global, global_pos); // Should get 250 back
+            }
+        }
+    }
+
+    #[test]
     fn test_offset_calculations() {
         // Same token should have same value in both spaces (since they have same static layout)
         let mao_token = MaoToken::ProgramStart;
