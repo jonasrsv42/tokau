@@ -1,3 +1,4 @@
+use crate::error::TokauError;
 use crate::space::{Position, TokenSpace};
 use crate::token::NameToken;
 
@@ -10,7 +11,7 @@ pub trait TokenFilter: Iterator<Item = u32> + Sized {
     fn is<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
     where
         S: Position<T>,
-        T: TryFrom<u32>,
+        T: TryFrom<u32, Error = TokauError>,
     {
         self.filter_map(|id| S::is::<T>(id))
     }

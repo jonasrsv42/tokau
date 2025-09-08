@@ -1,3 +1,4 @@
+use crate::error::TokauError;
 use crate::token::{NameToken, Token};
 
 pub trait Position<TokenType: Token> {
@@ -12,14 +13,14 @@ pub trait Position<TokenType: Token> {
     }
 }
 
-pub trait TokenSpace: Sized + TryFrom<u32> {
+pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
     const RESERVED: u32; // Fixed/static part of the token space
 
     // For NameToken tokens - try to convert global value back to token instance
     fn is<T: Token>(value: u32) -> Option<T>
     where
         Self: Position<T>,
-        T: TryFrom<u32>,
+        T: TryFrom<u32, Error = TokauError>,
     {
         let start = <Self as Position<T>>::OFFSET;
         value.checked_sub(start).and_then(|v| T::try_from(v).ok())
@@ -68,7 +69,7 @@ pub(crate) mod tests {
     }
 
     impl TryFrom<u32> for GingerSpace {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(id: u32) -> Result<Self, Self::Error> {
             // Match-based approach - compiler can optimize to jump table
@@ -83,7 +84,10 @@ pub(crate) mod tests {
                 10..=1009 => TextTokens::try_from(id - 10).ok().map(GingerSpace::Text),
                 _ => None,
             }
-            .ok_or(())
+            .ok_or(TokauError::OutOfRange {
+                value: id,
+                max: Self::RESERVED,
+            })
         }
     }
 
@@ -119,7 +123,7 @@ pub(crate) mod tests {
     }
 
     impl TryFrom<u32> for DynamicGingerSpace {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(id: u32) -> Result<Self, Self::Error> {
             if let Some(token) = Self::is::<GingerToken>(id) {
@@ -137,7 +141,9 @@ pub(crate) mod tests {
             if let Some(offset) = Self::remainder(id) {
                 return Ok(DynamicGingerSpace::Dynamic(offset));
             }
-            Err(())
+            // Since this has dynamic tokens, there's no real upper bound
+            // We never actually return an error for DynamicGingerSpace
+            unreachable!("DynamicGingerSpace accepts all values via dynamic tokens")
         }
     }
 
@@ -354,7 +360,7 @@ pub(crate) mod tests {
         }
 
         impl TryFrom<u32> for AlternativeSpace {
-            type Error = ();
+            type Error = TokauError;
 
             fn try_from(id: u32) -> Result<Self, Self::Error> {
                 if let Some(token) = Self::is::<MaoToken>(id) {
@@ -369,7 +375,10 @@ pub(crate) mod tests {
                 if let Some(token) = Self::is::<TextTokens>(id) {
                     return Ok(AlternativeSpace::Text(token));
                 }
-                Err(())
+                Err(TokauError::OutOfRange {
+                    value: id,
+                    max: Self::RESERVED,
+                })
             }
         }
 

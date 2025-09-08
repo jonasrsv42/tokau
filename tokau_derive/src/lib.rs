@@ -49,13 +49,16 @@ pub fn range(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #impl_generics ::tokau::RangeToken for #name #ty_generics #where_clause {}
 
         impl #impl_generics TryFrom<u32> for #name #ty_generics #where_clause {
-            type Error = ();
+            type Error = ::tokau::TokauError;
 
             fn try_from(offset: u32) -> Result<Self, Self::Error> {
                 if offset < #count {
                     Ok(#name(offset))
                 } else {
-                    Err(())
+                    Err(::tokau::TokauError::OutOfRange {
+                        value: offset,
+                        max: #count
+                    })
                 }
             }
         }
@@ -195,11 +198,14 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         }
 
         impl TryFrom<u32> for #name {
-            type Error = ();
+            type Error = ::tokau::TokauError;
 
             fn try_from(id: u32) -> Result<Self, Self::Error> {
                 #(#decode_arms)*
-                Err(())
+                Err(::tokau::TokauError::OutOfRange {
+                    value: id,
+                    max: Self::RESERVED
+                })
             }
         }
     };
@@ -245,12 +251,15 @@ pub fn derive_name(input: TokenStream) -> TokenStream {
         }
 
         impl TryFrom<u32> for #name {
-            type Error = ();
+            type Error = ::tokau::TokauError;
 
             fn try_from(value: u32) -> Result<Self, Self::Error> {
                 match value {
                     #(#try_from_arms,)*
-                    _ => Err(()),
+                    _ => Err(::tokau::TokauError::OutOfRange {
+                        value,
+                        max: Self::COUNT
+                    }),
                 }
             }
         }

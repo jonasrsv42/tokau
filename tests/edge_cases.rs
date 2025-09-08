@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, RangeToken, Space, TokenSpace, range};
+use tokau::{Name, NameToken, Position, RangeToken, Space, Token, TokenSpace, range};
 
 // Test boundary conditions with small token counts
 #[derive(Name, Debug, PartialEq, Clone, Copy)]

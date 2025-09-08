@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, Space, TokenSpace};
+use tokau::{Name, NameToken, Position, Space, Token, TokenSpace};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]

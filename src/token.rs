@@ -31,6 +31,7 @@ pub trait RangeToken: Token {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::error::TokauError;
 
     #[derive(Debug, PartialEq, Clone, Copy)]
     #[repr(u32)]
@@ -52,7 +53,7 @@ pub mod tests {
     }
 
     impl TryFrom<u32> for MaoToken {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(value: u32) -> Result<Self, Self::Error> {
             match value {
@@ -60,7 +61,10 @@ pub mod tests {
                 1 => Ok(MaoToken::ProgramEnd),
                 2 => Ok(MaoToken::Fn),
                 3 => Ok(MaoToken::Struct),
-                _ => Err(()),
+                _ => Err(TokauError::OutOfRange {
+                    value,
+                    max: Self::COUNT,
+                }),
             }
         }
     }
@@ -82,12 +86,15 @@ pub mod tests {
     }
 
     impl TryFrom<u32> for SingleToken {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(value: u32) -> Result<Self, Self::Error> {
             match value {
                 0 => Ok(SingleToken::Single),
-                _ => Err(()),
+                _ => Err(TokauError::OutOfRange {
+                    value,
+                    max: Self::COUNT,
+                }),
             }
         }
     }
@@ -113,7 +120,7 @@ pub mod tests {
     }
 
     impl TryFrom<u32> for GingerToken {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(value: u32) -> Result<Self, Self::Error> {
             match value {
@@ -122,7 +129,10 @@ pub mod tests {
                 2 => Ok(GingerToken::AudioStart),
                 3 => Ok(GingerToken::AudioEnd),
                 4 => Ok(GingerToken::AwaitAudio),
-                _ => Err(()),
+                _ => Err(TokauError::OutOfRange {
+                    value,
+                    max: Self::COUNT,
+                }),
             }
         }
     }
@@ -138,13 +148,16 @@ pub mod tests {
     impl RangeToken for TextTokens {}
 
     impl TryFrom<u32> for TextTokens {
-        type Error = ();
+        type Error = TokauError;
 
         fn try_from(offset: u32) -> Result<Self, Self::Error> {
             if offset < Self::COUNT {
                 Ok(TextTokens(offset))
             } else {
-                Err(())
+                Err(TokauError::OutOfRange {
+                    value: offset,
+                    max: Self::COUNT,
+                })
             }
         }
     }
@@ -180,15 +193,24 @@ pub mod tests {
         assert_eq!(MaoToken::try_from(1), Ok(MaoToken::ProgramEnd));
         assert_eq!(MaoToken::try_from(2), Ok(MaoToken::Fn));
         assert_eq!(MaoToken::try_from(3), Ok(MaoToken::Struct));
-        assert_eq!(MaoToken::try_from(4), Err(()));
+        assert_eq!(
+            MaoToken::try_from(4),
+            Err(TokauError::OutOfRange { value: 4, max: 4 })
+        );
 
         // Test SingleToken conversions
         assert_eq!(SingleToken::try_from(0), Ok(SingleToken::Single));
-        assert_eq!(SingleToken::try_from(1), Err(()));
+        assert_eq!(
+            SingleToken::try_from(1),
+            Err(TokauError::OutOfRange { value: 1, max: 1 })
+        );
 
         // Test GingerToken conversions
         assert_eq!(GingerToken::try_from(0), Ok(GingerToken::TextStart));
         assert_eq!(GingerToken::try_from(4), Ok(GingerToken::AwaitAudio));
-        assert_eq!(GingerToken::try_from(5), Err(()));
+        assert_eq!(
+            GingerToken::try_from(5),
+            Err(TokauError::OutOfRange { value: 5, max: 5 })
+        );
     }
 }

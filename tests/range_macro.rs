@@ -1,4 +1,4 @@
-use tokau::{RangeToken, Token, range};
+use tokau::{RangeToken, Token, TokenSpace, range};
 
 #[derive(Debug, PartialEq)]
 #[range(1000)]

@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Token};
+use tokau::{Name, NameToken, TokauError, Token};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]
@@ -66,16 +66,25 @@ fn test_derive_macro_try_from() {
     assert_eq!(LanguageToken::try_from(3), Ok(LanguageToken::For));
     assert_eq!(LanguageToken::try_from(4), Ok(LanguageToken::Function));
     assert_eq!(LanguageToken::try_from(5), Ok(LanguageToken::Return));
-    assert_eq!(LanguageToken::try_from(6), Err(())); // Out of range
+    assert_eq!(
+        LanguageToken::try_from(6),
+        Err(TokauError::OutOfRange { value: 6, max: 6 })
+    ); // Out of range
 
     // Test OperatorToken conversions
     assert_eq!(OperatorToken::try_from(0), Ok(OperatorToken::Plus));
     assert_eq!(OperatorToken::try_from(5), Ok(OperatorToken::NotEquals));
-    assert_eq!(OperatorToken::try_from(6), Err(())); // Out of range
+    assert_eq!(
+        OperatorToken::try_from(6),
+        Err(TokauError::OutOfRange { value: 6, max: 6 })
+    ); // Out of range
 
     // Test SimpleToken conversions
     assert_eq!(SimpleToken::try_from(0), Ok(SimpleToken::Only));
-    assert_eq!(SimpleToken::try_from(1), Err(())); // Out of range
+    assert_eq!(
+        SimpleToken::try_from(1),
+        Err(TokauError::OutOfRange { value: 1, max: 1 })
+    ); // Out of range
 }
 
 #[test]

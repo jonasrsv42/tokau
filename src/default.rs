@@ -1,3 +1,4 @@
+use crate::error::TokauError;
 use crate::space::{Position, TokenSpace};
 use crate::token::{NameToken, RangeToken};
 
@@ -24,16 +25,16 @@ impl<T: RangeToken> Position<T> for RangeTokenSpace<T> {
 
 impl<T> TokenSpace for NameTokenSpace<T>
 where
-    T: NameToken + TryFrom<u32>,
+    T: NameToken + TryFrom<u32, Error = TokauError>,
 {
     const RESERVED: u32 = T::COUNT;
 }
 
 impl<T> TryFrom<u32> for NameTokenSpace<T>
 where
-    T: NameToken + TryFrom<u32>,
+    T: NameToken + TryFrom<u32, Error = TokauError>,
 {
-    type Error = ();
+    type Error = TokauError;
 
     fn try_from(id: u32) -> Result<Self, Self::Error> {
         if let Some(token) = Self::is::<T>(id) {
@@ -42,22 +43,23 @@ where
         if let Some(offset) = Self::remainder(id) {
             return Ok(NameTokenSpace::Dynamic(offset));
         }
-        Err(())
+        // Since this has dynamic tokens, it accepts all values
+        unreachable!("NameTokenSpace with dynamic tokens accepts all values")
     }
 }
 
 impl<T> TokenSpace for RangeTokenSpace<T>
 where
-    T: RangeToken + TryFrom<u32>,
+    T: RangeToken + TryFrom<u32, Error = TokauError>,
 {
     const RESERVED: u32 = T::COUNT;
 }
 
 impl<T> TryFrom<u32> for RangeTokenSpace<T>
 where
-    T: RangeToken + TryFrom<u32>,
+    T: RangeToken + TryFrom<u32, Error = TokauError>,
 {
-    type Error = ();
+    type Error = TokauError;
 
     fn try_from(id: u32) -> Result<Self, Self::Error> {
         if let Some(token) = Self::is::<T>(id) {
@@ -66,7 +68,8 @@ where
         if let Some(offset) = Self::remainder(id) {
             return Ok(RangeTokenSpace::Dynamic(offset));
         }
-        Err(())
+        // Since this has dynamic tokens, it accepts all values
+        unreachable!("RangeTokenSpace with dynamic tokens accepts all values")
     }
 }
 
