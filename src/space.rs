@@ -17,7 +17,7 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
     const RESERVED: u32; // Fixed/static part of the token space
 
     // For NameToken tokens - try to convert global value back to token instance
-    fn is<T: Token>(value: u32) -> Option<T>
+    fn try_as<T: Token>(value: u32) -> Option<T>
     where
         Self: Position<T>,
         T: TryFrom<u32, Error = TokauError>,
@@ -26,7 +26,7 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
         value.checked_sub(start).and_then(|v| T::try_from(v).ok())
     }
 
-    // Return remainders outside reserved range, this can
+    // Return remainders outside reserved range, thtry_as can
     // overlap and exceed any dynamic vocabulary.
     fn remainder(value: u32) -> Option<u32> {
         value.checked_sub(Self::RESERVED)
@@ -126,22 +126,22 @@ pub(crate) mod tests {
         type Error = TokauError;
 
         fn try_from(id: u32) -> Result<Self, Self::Error> {
-            if let Some(token) = Self::is::<GingerToken>(id) {
+            if let Some(token) = Self::try_as::<GingerToken>(id) {
                 return Ok(DynamicGingerSpace::Ginger(token));
             }
-            if let Some(token) = Self::is::<MaoToken>(id) {
+            if let Some(token) = Self::try_as::<MaoToken>(id) {
                 return Ok(DynamicGingerSpace::Mao(token));
             }
-            if let Some(token) = Self::is::<SingleToken>(id) {
+            if let Some(token) = Self::try_as::<SingleToken>(id) {
                 return Ok(DynamicGingerSpace::Single(token));
             }
-            if let Some(token) = Self::is::<TextTokens>(id) {
+            if let Some(token) = Self::try_as::<TextTokens>(id) {
                 return Ok(DynamicGingerSpace::Text(token));
             }
             if let Some(offset) = Self::remainder(id) {
                 return Ok(DynamicGingerSpace::Dynamic(offset));
             }
-            // Since this has dynamic tokens, there's no real upper bound
+            // Since thtry_as has dynamic tokens, there's no real upper bound
             // We never actually return an error for DynamicGingerSpace
             unreachable!("DynamicGingerSpace accepts all values via dynamic tokens")
         }
@@ -161,30 +161,39 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_is_token_in_space() {
-        // Check if value 5 is a MaoToken (should be ProgramStart)
-        assert_eq!(GingerSpace::is::<MaoToken>(5), Some(MaoToken::ProgramStart));
-        assert_eq!(GingerSpace::is::<MaoToken>(6), Some(MaoToken::ProgramEnd));
-        assert_eq!(GingerSpace::is::<MaoToken>(7), Some(MaoToken::Fn));
-        assert_eq!(GingerSpace::is::<MaoToken>(8), Some(MaoToken::Struct));
-
-        // Check if value 0 is a GingerToken (should be TextStart)
+    fn test_try_as_token_in_space() {
+        // Check if value 5 try_as a MaoToken (should be ProgramStart)
         assert_eq!(
-            GingerSpace::is::<GingerToken>(0),
+            GingerSpace::try_as::<MaoToken>(5),
+            Some(MaoToken::ProgramStart)
+        );
+        assert_eq!(
+            GingerSpace::try_as::<MaoToken>(6),
+            Some(MaoToken::ProgramEnd)
+        );
+        assert_eq!(GingerSpace::try_as::<MaoToken>(7), Some(MaoToken::Fn));
+        assert_eq!(GingerSpace::try_as::<MaoToken>(8), Some(MaoToken::Struct));
+
+        // Check if value 0 try_as a GingerToken (should be TextStart)
+        assert_eq!(
+            GingerSpace::try_as::<GingerToken>(0),
             Some(GingerToken::TextStart)
         );
         assert_eq!(
-            GingerSpace::is::<GingerToken>(4),
+            GingerSpace::try_as::<GingerToken>(4),
             Some(GingerToken::AwaitAudio)
         );
 
         // Check SingleToken
-        assert_eq!(GingerSpace::is::<SingleToken>(9), Some(SingleToken::Single));
+        assert_eq!(
+            GingerSpace::try_as::<SingleToken>(9),
+            Some(SingleToken::Single)
+        );
 
         // Out of range tests
-        assert!(GingerSpace::is::<MaoToken>(1000).is_none());
-        assert!(GingerSpace::is::<MaoToken>(4).is_none()); // This is a GingerToken
-        assert!(GingerSpace::is::<GingerToken>(5).is_none()); // This is a MaoToken
+        assert!(GingerSpace::try_as::<MaoToken>(1000).is_none());
+        assert!(GingerSpace::try_as::<MaoToken>(4).is_none()); // Thtry_as try_as a GingerToken
+        assert!(GingerSpace::try_as::<GingerToken>(5).is_none()); // Thtry_as try_as a MaoToken
     }
 
     #[test]
@@ -204,36 +213,39 @@ pub(crate) mod tests {
 
         // Static tokens still work
         assert_eq!(
-            DynamicGingerSpace::is::<MaoToken>(5),
+            DynamicGingerSpace::try_as::<MaoToken>(5),
             Some(MaoToken::ProgramStart)
         );
     }
 
     #[test]
-    fn test_is_with_range_tokens() {
-        // Test is<T>() with RangeToken types (TextTokens)
+    fn test_try_as_with_range_tokens() {
+        // Test try_as<T>() with RangeToken types (TextTokens)
 
         // Valid TextTokens in range [10, 1009]
-        assert_eq!(GingerSpace::is::<TextTokens>(10), Some(TextTokens(0))); // First text token
-        assert_eq!(GingerSpace::is::<TextTokens>(100), Some(TextTokens(90))); // Middle text token
-        assert_eq!(GingerSpace::is::<TextTokens>(1009), Some(TextTokens(999))); // Last text token
+        assert_eq!(GingerSpace::try_as::<TextTokens>(10), Some(TextTokens(0))); // First text token
+        assert_eq!(GingerSpace::try_as::<TextTokens>(100), Some(TextTokens(90))); // Middle text token
+        assert_eq!(
+            GingerSpace::try_as::<TextTokens>(1009),
+            Some(TextTokens(999))
+        ); // Last text token
 
         // Out of range - should return None
-        assert_eq!(GingerSpace::is::<TextTokens>(9), None); // Before range
-        assert_eq!(GingerSpace::is::<TextTokens>(1010), None); // After range
-        assert_eq!(GingerSpace::is::<TextTokens>(0), None); // In GingerToken range
-        assert_eq!(GingerSpace::is::<TextTokens>(5), None); // In MaoToken range
+        assert_eq!(GingerSpace::try_as::<TextTokens>(9), None); // Before range
+        assert_eq!(GingerSpace::try_as::<TextTokens>(1010), None); // After range
+        assert_eq!(GingerSpace::try_as::<TextTokens>(0), None); // In GingerToken range
+        assert_eq!(GingerSpace::try_as::<TextTokens>(5), None); // In MaoToken range
 
         // Test with DynamicGingerSpace too
         assert_eq!(
-            DynamicGingerSpace::is::<TextTokens>(10),
+            DynamicGingerSpace::try_as::<TextTokens>(10),
             Some(TextTokens(0))
         );
         assert_eq!(
-            DynamicGingerSpace::is::<TextTokens>(1009),
+            DynamicGingerSpace::try_as::<TextTokens>(1009),
             Some(TextTokens(999))
         );
-        assert_eq!(DynamicGingerSpace::is::<TextTokens>(1010), None); // In dynamic range
+        assert_eq!(DynamicGingerSpace::try_as::<TextTokens>(1010), None); // In dynamic range
     }
 
     #[test]
@@ -287,10 +299,16 @@ pub(crate) mod tests {
         // - TextTokens: 10..1010 (1000 tokens)
 
         // Test that global position correctly maps to local offset
-        assert_eq!(GingerSpace::is::<TextTokens>(10), Some(TextTokens(0))); // Global 10 -> Local 0
-        assert_eq!(GingerSpace::is::<TextTokens>(50), Some(TextTokens(40))); // Global 50 -> Local 40
-        assert_eq!(GingerSpace::is::<TextTokens>(500), Some(TextTokens(490))); // Global 500 -> Local 490
-        assert_eq!(GingerSpace::is::<TextTokens>(1000), Some(TextTokens(990))); // Global 1000 -> Local 990
+        assert_eq!(GingerSpace::try_as::<TextTokens>(10), Some(TextTokens(0))); // Global 10 -> Local 0
+        assert_eq!(GingerSpace::try_as::<TextTokens>(50), Some(TextTokens(40))); // Global 50 -> Local 40
+        assert_eq!(
+            GingerSpace::try_as::<TextTokens>(500),
+            Some(TextTokens(490))
+        ); // Global 500 -> Local 490
+        assert_eq!(
+            GingerSpace::try_as::<TextTokens>(1000),
+            Some(TextTokens(990))
+        ); // Global 1000 -> Local 990
 
         // Test that local offset correctly maps to global position using inside()
         assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // Local 0 -> Global 10
@@ -300,7 +318,7 @@ pub(crate) mod tests {
 
         // Test round-trip: global -> local -> global
         let global_pos = 250u32;
-        if let Some(local_token) = GingerSpace::is::<TextTokens>(global_pos) {
+        if let Some(local_token) = GingerSpace::try_as::<TextTokens>(global_pos) {
             assert_eq!(local_token, TextTokens(240)); // 250 - 10 = 240
             if let Some(back_to_global) = TextTokens::inside::<GingerSpace>(local_token.0) {
                 assert_eq!(back_to_global, global_pos); // Should get 250 back
@@ -316,10 +334,13 @@ pub(crate) mod tests {
         let value_space2 = mao_token.inside::<DynamicGingerSpace>();
         assert_eq!(value_space1, value_space2);
 
-        // Test that is() works correctly for both spaces
-        assert_eq!(GingerSpace::is::<MaoToken>(5), Some(MaoToken::ProgramStart));
+        // Test that try_as() works correctly for both spaces
         assert_eq!(
-            DynamicGingerSpace::is::<MaoToken>(5),
+            GingerSpace::try_as::<MaoToken>(5),
+            Some(MaoToken::ProgramStart)
+        );
+        assert_eq!(
+            DynamicGingerSpace::try_as::<MaoToken>(5),
             Some(MaoToken::ProgramStart)
         );
     }
@@ -363,16 +384,16 @@ pub(crate) mod tests {
             type Error = TokauError;
 
             fn try_from(id: u32) -> Result<Self, Self::Error> {
-                if let Some(token) = Self::is::<MaoToken>(id) {
+                if let Some(token) = Self::try_as::<MaoToken>(id) {
                     return Ok(AlternativeSpace::Mao(token));
                 }
-                if let Some(token) = Self::is::<SingleToken>(id) {
+                if let Some(token) = Self::try_as::<SingleToken>(id) {
                     return Ok(AlternativeSpace::Single(token));
                 }
-                if let Some(token) = Self::is::<GingerToken>(id) {
+                if let Some(token) = Self::try_as::<GingerToken>(id) {
                     return Ok(AlternativeSpace::Ginger(token));
                 }
-                if let Some(token) = Self::is::<TextTokens>(id) {
+                if let Some(token) = Self::try_as::<TextTokens>(id) {
                     return Ok(AlternativeSpace::Text(token));
                 }
                 Err(TokauError::OutOfRange {
@@ -398,7 +419,7 @@ pub(crate) mod tests {
         let alt_maos: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .filter_map(|id| AlternativeSpace::is::<MaoToken>(id))
+            .filter_map(|id| AlternativeSpace::try_as::<MaoToken>(id))
             .collect();
         // Only tokens 0,1 are present in our test vector, so we get ProgramStart, ProgramEnd
         assert_eq!(alt_maos, vec![MaoToken::ProgramStart, MaoToken::ProgramEnd]);
@@ -406,7 +427,7 @@ pub(crate) mod tests {
         // In DynamicGingerSpace, token 5 should be MaoToken::ProgramStart
         let dyn_maos: Vec<MaoToken> = tokens
             .into_iter()
-            .filter_map(|id| DynamicGingerSpace::is::<MaoToken>(id))
+            .filter_map(|id| DynamicGingerSpace::try_as::<MaoToken>(id))
             .collect();
         assert_eq!(
             dyn_maos,

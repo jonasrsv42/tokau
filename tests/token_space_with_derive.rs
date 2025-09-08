@@ -39,18 +39,21 @@ fn test_token_space_with_derived_tokens() {
 
     // Test reverse lookups
     assert_eq!(
-        MyTokenSpace::is::<ControlToken>(0),
+        MyTokenSpace::try_as::<ControlToken>(0),
         Some(ControlToken::Start)
     );
     assert_eq!(
-        MyTokenSpace::is::<ControlToken>(3),
+        MyTokenSpace::try_as::<ControlToken>(3),
         Some(ControlToken::Resume)
     );
-    assert_eq!(MyTokenSpace::is::<ControlToken>(4), None); // Out of ControlToken range
+    assert_eq!(MyTokenSpace::try_as::<ControlToken>(4), None); // Out of ControlToken range
 
-    assert_eq!(MyTokenSpace::is::<DataToken>(4), Some(DataToken::Read));
-    assert_eq!(MyTokenSpace::is::<DataToken>(6), Some(DataToken::Delete));
-    assert_eq!(MyTokenSpace::is::<DataToken>(7), None); // Out of DataToken range
+    assert_eq!(MyTokenSpace::try_as::<DataToken>(4), Some(DataToken::Read));
+    assert_eq!(
+        MyTokenSpace::try_as::<DataToken>(6),
+        Some(DataToken::Delete)
+    );
+    assert_eq!(MyTokenSpace::try_as::<DataToken>(7), None); // Out of DataToken range
 
     // Test static values
     assert_eq!(MyTokenSpace::RESERVED, 7); // 4 + 3

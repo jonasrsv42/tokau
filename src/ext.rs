@@ -8,12 +8,12 @@ pub trait TokenFilter: Iterator<Item = u32> + Sized {
         self.filter_map(|id| S::remainder(id).map(|_| id))
     }
 
-    fn is<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
+    fn try_as<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
     where
         S: Position<T>,
         T: TryFrom<u32, Error = TokauError>,
     {
-        self.filter_map(|id| S::is::<T>(id))
+        self.filter_map(|id| S::try_as::<T>(id))
     }
 }
 
@@ -42,7 +42,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .is::<DynamicGingerSpace, MaoToken>()
+            .try_as::<DynamicGingerSpace, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -71,13 +71,13 @@ mod tests {
         let all_special_tokens: Vec<u32> = tokens
             .clone()
             .into_iter()
-            .is::<DynamicGingerSpace, GingerToken>()
+            .try_as::<DynamicGingerSpace, GingerToken>()
             .map(|token| token.inside::<DynamicGingerSpace>())
             .chain(
                 tokens
                     .clone()
                     .into_iter()
-                    .is::<DynamicGingerSpace, MaoToken>()
+                    .try_as::<DynamicGingerSpace, MaoToken>()
                     .map(|token| token.inside::<DynamicGingerSpace>()),
             )
             .collect();
@@ -87,7 +87,7 @@ mod tests {
         let mao_count = tokens
             .clone()
             .into_iter()
-            .is::<DynamicGingerSpace, MaoToken>()
+            .try_as::<DynamicGingerSpace, MaoToken>()
             .count();
         assert_eq!(mao_count, 4); // ProgramStart, ProgramEnd, Fn, Struct
     }
@@ -113,7 +113,7 @@ mod tests {
 
         let no_names: Vec<MaoToken> = out_of_range
             .into_iter()
-            .is::<DynamicGingerSpace, MaoToken>()
+            .try_as::<DynamicGingerSpace, MaoToken>()
             .collect();
         assert_eq!(no_names, vec![]);
 

@@ -44,14 +44,20 @@ fn test_space_macro() {
     assert_eq!(TextTokens::inside::<MySpace>(1000), None);
 
     // Test reverse lookups
-    assert_eq!(MySpace::is::<ControlToken>(0), Some(ControlToken::Start));
-    assert_eq!(MySpace::is::<ControlToken>(2), Some(ControlToken::Pause));
-    assert_eq!(MySpace::is::<ControlToken>(3), None); // Text token range
+    assert_eq!(
+        MySpace::try_as::<ControlToken>(0),
+        Some(ControlToken::Start)
+    );
+    assert_eq!(
+        MySpace::try_as::<ControlToken>(2),
+        Some(ControlToken::Pause)
+    );
+    assert_eq!(MySpace::try_as::<ControlToken>(3), None); // Text token range
 
     // Test range token lookups
-    assert_eq!(MySpace::is::<TextTokens>(3), Some(TextTokens(0)));
-    assert_eq!(MySpace::is::<TextTokens>(1002), Some(TextTokens(999)));
-    assert_eq!(MySpace::is::<TextTokens>(1003), None);
+    assert_eq!(MySpace::try_as::<TextTokens>(3), Some(TextTokens(0)));
+    assert_eq!(MySpace::try_as::<TextTokens>(1002), Some(TextTokens(999)));
+    assert_eq!(MySpace::try_as::<TextTokens>(1003), None);
 
     // Test dynamic tokens
     assert_eq!(MySpace::remainder(1002), None); // In static range

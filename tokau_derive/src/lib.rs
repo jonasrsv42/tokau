@@ -154,9 +154,9 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         quote! { #(#counts)+* }
     };
 
-    // Generate decode method implementation - use is<T>() for simplicity and correctness
+    // Generate decode method implementation - use try_as<T>() for simplicity and correctness
     // TODO: Optimize this to generate efficient jump-table with match statement and literal range bounds
-    // Current approach uses multiple is<T>() calls which do redundant offset calculations.
+    // Current approach uses multiple try_as<T>() calls which do redundant offset calculations.
     // Ideal approach would be: match id { 0..=4 => ..., 5..=8 => ..., ... }
     // Challenge: Rust requires literal constants in pattern ranges, not expressions like `OFFSET + COUNT`
     // Possible solutions:
@@ -174,7 +174,7 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         if !is_dynamic {
             let variant_name = &variant.ident;
             decode_arms.push(quote! {
-                if let Some(token) = <#name as ::tokau::TokenSpace>::is::<#token_type>(id) {
+                if let Some(token) = <#name as ::tokau::TokenSpace>::try_as::<#token_type>(id) {
                     return Ok(#name::#variant_name(token));
                 }
             });

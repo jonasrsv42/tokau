@@ -75,8 +75,8 @@ fn test_minimal_space_boundaries() {
     assert_eq!(MinimalSpace::RESERVED, 1);
 
     // Test boundary conditions
-    assert_eq!(MinimalSpace::is::<TinyToken>(0), Some(TinyToken::Only));
-    assert_eq!(MinimalSpace::is::<TinyToken>(1), None); // Just outside
+    assert_eq!(MinimalSpace::try_as::<TinyToken>(0), Some(TinyToken::Only));
+    assert_eq!(MinimalSpace::try_as::<TinyToken>(1), None); // Just outside
 
     assert_eq!(
         MinimalSpace::try_from(0).ok(),
@@ -100,15 +100,15 @@ fn test_boundary_space_edge_cases() {
 
     // Test SingleRangeToken boundaries
     assert_eq!(
-        BoundarySpace::is::<SingleRangeToken>(0),
+        BoundarySpace::try_as::<SingleRangeToken>(0),
         Some(SingleRangeToken(0))
     );
-    assert_eq!(BoundarySpace::is::<SingleRangeToken>(1), None); // Now in TinyToken range
+    assert_eq!(BoundarySpace::try_as::<SingleRangeToken>(1), None); // Now in TinyToken range
 
     // Test TinyToken boundaries
-    assert_eq!(BoundarySpace::is::<TinyToken>(1), Some(TinyToken::Only));
-    assert_eq!(BoundarySpace::is::<TinyToken>(2), None); // Out of space
-    assert_eq!(BoundarySpace::is::<TinyToken>(0), None); // In SingleRangeToken range
+    assert_eq!(BoundarySpace::try_as::<TinyToken>(1), Some(TinyToken::Only));
+    assert_eq!(BoundarySpace::try_as::<TinyToken>(2), None); // Out of space
+    assert_eq!(BoundarySpace::try_as::<TinyToken>(0), None); // In SingleRangeToken range
 
     // Test decode at boundaries
     assert_eq!(
@@ -149,58 +149,58 @@ fn test_complex_alternating_layout() {
 
     // FirstName: 0..2
     assert_eq!(
-        ComplexAlternatingSpace::is::<FirstName>(0),
+        ComplexAlternatingSpace::try_as::<FirstName>(0),
         Some(FirstName::A)
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<FirstName>(1),
+        ComplexAlternatingSpace::try_as::<FirstName>(1),
         Some(FirstName::B)
     );
-    assert_eq!(ComplexAlternatingSpace::is::<FirstName>(2), None);
+    assert_eq!(ComplexAlternatingSpace::try_as::<FirstName>(2), None);
 
     // FirstRange: 2..5
     assert_eq!(
-        ComplexAlternatingSpace::is::<FirstRange>(2),
+        ComplexAlternatingSpace::try_as::<FirstRange>(2),
         Some(FirstRange(0))
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<FirstRange>(3),
+        ComplexAlternatingSpace::try_as::<FirstRange>(3),
         Some(FirstRange(1))
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<FirstRange>(4),
+        ComplexAlternatingSpace::try_as::<FirstRange>(4),
         Some(FirstRange(2))
     );
-    assert_eq!(ComplexAlternatingSpace::is::<FirstRange>(5), None);
-    assert_eq!(ComplexAlternatingSpace::is::<FirstRange>(1), None); // In FirstName range
+    assert_eq!(ComplexAlternatingSpace::try_as::<FirstRange>(5), None);
+    assert_eq!(ComplexAlternatingSpace::try_as::<FirstRange>(1), None); // In FirstName range
 
     // SecondName: 5..8
     assert_eq!(
-        ComplexAlternatingSpace::is::<SecondName>(5),
+        ComplexAlternatingSpace::try_as::<SecondName>(5),
         Some(SecondName::X)
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<SecondName>(6),
+        ComplexAlternatingSpace::try_as::<SecondName>(6),
         Some(SecondName::Y)
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<SecondName>(7),
+        ComplexAlternatingSpace::try_as::<SecondName>(7),
         Some(SecondName::Z)
     );
-    assert_eq!(ComplexAlternatingSpace::is::<SecondName>(8), None);
-    assert_eq!(ComplexAlternatingSpace::is::<SecondName>(4), None); // In FirstRange range
+    assert_eq!(ComplexAlternatingSpace::try_as::<SecondName>(8), None);
+    assert_eq!(ComplexAlternatingSpace::try_as::<SecondName>(4), None); // In FirstRange range
 
     // SecondRange: 8..10
     assert_eq!(
-        ComplexAlternatingSpace::is::<SecondRange>(8),
+        ComplexAlternatingSpace::try_as::<SecondRange>(8),
         Some(SecondRange(0))
     );
     assert_eq!(
-        ComplexAlternatingSpace::is::<SecondRange>(9),
+        ComplexAlternatingSpace::try_as::<SecondRange>(9),
         Some(SecondRange(1))
     );
-    assert_eq!(ComplexAlternatingSpace::is::<SecondRange>(10), None); // Now dynamic
-    assert_eq!(ComplexAlternatingSpace::is::<SecondRange>(7), None); // In SecondName range
+    assert_eq!(ComplexAlternatingSpace::try_as::<SecondRange>(10), None); // Now dynamic
+    assert_eq!(ComplexAlternatingSpace::try_as::<SecondRange>(7), None); // In SecondName range
 
     // Dynamic: 10+
     assert_eq!(ComplexAlternatingSpace::remainder(9), None); // Still in static range
@@ -236,7 +236,7 @@ fn test_complex_alternating_layout() {
 
 #[test]
 fn test_only_dynamic_space() {
-    // OnlyDynamicSpace has RESERVED = 0, everything is dynamic
+    // OnlyDynamicSpace has RESERVED = 0, everything try_as dynamic
     assert_eq!(OnlyDynamicSpace::RESERVED, 0);
 
     assert_eq!(OnlyDynamicSpace::remainder(0), Some(0));
@@ -263,10 +263,22 @@ fn test_large_values_and_overflow_protection() {
     let large_val = u32::MAX - 100;
 
     // These should all return None due to being out of range
-    assert_eq!(ComplexAlternatingSpace::is::<FirstName>(large_val), None);
-    assert_eq!(ComplexAlternatingSpace::is::<FirstRange>(large_val), None);
-    assert_eq!(ComplexAlternatingSpace::is::<SecondName>(large_val), None);
-    assert_eq!(ComplexAlternatingSpace::is::<SecondRange>(large_val), None);
+    assert_eq!(
+        ComplexAlternatingSpace::try_as::<FirstName>(large_val),
+        None
+    );
+    assert_eq!(
+        ComplexAlternatingSpace::try_as::<FirstRange>(large_val),
+        None
+    );
+    assert_eq!(
+        ComplexAlternatingSpace::try_as::<SecondName>(large_val),
+        None
+    );
+    assert_eq!(
+        ComplexAlternatingSpace::try_as::<SecondRange>(large_val),
+        None
+    );
 
     // But dynamic should work
     assert_eq!(

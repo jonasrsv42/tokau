@@ -126,38 +126,65 @@ fn test_range_token_inside_different_spaces() {
 #[test]
 fn test_reverse_lookups_across_spaces() {
     // Test CommonToken lookups in FirstSpace
-    assert_eq!(FirstSpace::is::<CommonToken>(0), Some(CommonToken::Alpha));
-    assert_eq!(FirstSpace::is::<CommonToken>(1), Some(CommonToken::Beta));
-    assert_eq!(FirstSpace::is::<CommonToken>(2), Some(CommonToken::Gamma));
-    assert_eq!(FirstSpace::is::<CommonToken>(3), None); // SpecialToken range
+    assert_eq!(
+        FirstSpace::try_as::<CommonToken>(0),
+        Some(CommonToken::Alpha)
+    );
+    assert_eq!(
+        FirstSpace::try_as::<CommonToken>(1),
+        Some(CommonToken::Beta)
+    );
+    assert_eq!(
+        FirstSpace::try_as::<CommonToken>(2),
+        Some(CommonToken::Gamma)
+    );
+    assert_eq!(FirstSpace::try_as::<CommonToken>(3), None); // SpecialToken range
 
     // Test CommonToken lookups in SecondSpace (different positions)
-    assert_eq!(SecondSpace::is::<CommonToken>(52), Some(CommonToken::Alpha));
-    assert_eq!(SecondSpace::is::<CommonToken>(53), Some(CommonToken::Beta));
-    assert_eq!(SecondSpace::is::<CommonToken>(54), Some(CommonToken::Gamma));
-    assert_eq!(SecondSpace::is::<CommonToken>(0), None); // SpecialToken range
-    assert_eq!(SecondSpace::is::<CommonToken>(51), None); // AudioRange
+    assert_eq!(
+        SecondSpace::try_as::<CommonToken>(52),
+        Some(CommonToken::Alpha)
+    );
+    assert_eq!(
+        SecondSpace::try_as::<CommonToken>(53),
+        Some(CommonToken::Beta)
+    );
+    assert_eq!(
+        SecondSpace::try_as::<CommonToken>(54),
+        Some(CommonToken::Gamma)
+    );
+    assert_eq!(SecondSpace::try_as::<CommonToken>(0), None); // SpecialToken range
+    assert_eq!(SecondSpace::try_as::<CommonToken>(51), None); // AudioRange
 
     // Test SpecialToken lookups in different spaces
-    assert_eq!(FirstSpace::is::<SpecialToken>(3), Some(SpecialToken::Start));
-    assert_eq!(FirstSpace::is::<SpecialToken>(4), Some(SpecialToken::End));
-    assert_eq!(FirstSpace::is::<SpecialToken>(0), None); // CommonToken range
-
     assert_eq!(
-        SecondSpace::is::<SpecialToken>(0),
+        FirstSpace::try_as::<SpecialToken>(3),
         Some(SpecialToken::Start)
     );
-    assert_eq!(SecondSpace::is::<SpecialToken>(1), Some(SpecialToken::End));
-    assert_eq!(SecondSpace::is::<SpecialToken>(3), None); // AudioRange
+    assert_eq!(
+        FirstSpace::try_as::<SpecialToken>(4),
+        Some(SpecialToken::End)
+    );
+    assert_eq!(FirstSpace::try_as::<SpecialToken>(0), None); // CommonToken range
+
+    assert_eq!(
+        SecondSpace::try_as::<SpecialToken>(0),
+        Some(SpecialToken::Start)
+    );
+    assert_eq!(
+        SecondSpace::try_as::<SpecialToken>(1),
+        Some(SpecialToken::End)
+    );
+    assert_eq!(SecondSpace::try_as::<SpecialToken>(3), None); // AudioRange
 
     // Test range token lookups
-    assert_eq!(FirstSpace::is::<TextRange>(5), Some(TextRange(0)));
-    assert_eq!(FirstSpace::is::<TextRange>(104), Some(TextRange(99)));
-    assert_eq!(FirstSpace::is::<TextRange>(0), None); // CommonToken range
+    assert_eq!(FirstSpace::try_as::<TextRange>(5), Some(TextRange(0)));
+    assert_eq!(FirstSpace::try_as::<TextRange>(104), Some(TextRange(99)));
+    assert_eq!(FirstSpace::try_as::<TextRange>(0), None); // CommonToken range
 
-    assert_eq!(ThirdSpace::is::<TextRange>(0), Some(TextRange(0)));
-    assert_eq!(ThirdSpace::is::<TextRange>(99), Some(TextRange(99)));
-    assert_eq!(ThirdSpace::is::<TextRange>(100), None); // AudioRange
+    assert_eq!(ThirdSpace::try_as::<TextRange>(0), Some(TextRange(0)));
+    assert_eq!(ThirdSpace::try_as::<TextRange>(99), Some(TextRange(99)));
+    assert_eq!(ThirdSpace::try_as::<TextRange>(100), None); // AudioRange
 }
 
 #[test]
@@ -281,7 +308,7 @@ fn test_dynamic_tokens_in_different_spaces() {
     assert_eq!(ThirdSpace::remainder(155), Some(0)); // Can compute remainder, but no decode
     assert_eq!(ThirdSpace::remainder(1000), Some(845)); // Can compute remainder, but no decode
 
-    // But TryFrom should fail for values beyond static range when no dynamic variant exists
+    // But TryFrom should fail for values beyond static range when no dynamic variant extry_asts
     assert_eq!(
         ThirdSpace::try_from(154).ok(),
         Some(ThirdSpace::Special(SpecialToken::End))
@@ -289,7 +316,7 @@ fn test_dynamic_tokens_in_different_spaces() {
     assert_eq!(ThirdSpace::try_from(155).ok(), None); // Beyond static range, no dynamic variant
     assert_eq!(ThirdSpace::try_from(1000).ok(), None); // Way beyond static range, still no dynamic variant
 
-    // Verify the error type is correct
+    // Verify the error type try_as correct
     assert_eq!(
         ThirdSpace::try_from(155),
         Err(TokauError::OutOfRange {
@@ -307,7 +334,7 @@ fn test_dynamic_tokens_in_different_spaces() {
 }
 
 #[test]
-fn test_round_trip_consistency() {
+fn test_round_trip_constry_astency() {
     // Test that global -> token -> global gives same result for each space
 
     // Test CommonToken round trips in different spaces
@@ -316,19 +343,19 @@ fn test_round_trip_consistency() {
     for token in common_tokens {
         // FirstSpace
         let global_pos = token.inside::<FirstSpace>();
-        assert_eq!(FirstSpace::is::<CommonToken>(global_pos), Some(token));
+        assert_eq!(FirstSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // SecondSpace
         let global_pos = token.inside::<SecondSpace>();
-        assert_eq!(SecondSpace::is::<CommonToken>(global_pos), Some(token));
+        assert_eq!(SecondSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // ThirdSpace
         let global_pos = token.inside::<ThirdSpace>();
-        assert_eq!(ThirdSpace::is::<CommonToken>(global_pos), Some(token));
+        assert_eq!(ThirdSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // MinimalSpace
         let global_pos = token.inside::<MinimalSpace>();
-        assert_eq!(MinimalSpace::is::<CommonToken>(global_pos), Some(token));
+        assert_eq!(MinimalSpace::try_as::<CommonToken>(global_pos), Some(token));
     }
 
     // Test SpecialToken round trips
@@ -337,29 +364,29 @@ fn test_round_trip_consistency() {
     for token in special_tokens {
         // FirstSpace
         let global_pos = token.inside::<FirstSpace>();
-        assert_eq!(FirstSpace::is::<SpecialToken>(global_pos), Some(token));
+        assert_eq!(FirstSpace::try_as::<SpecialToken>(global_pos), Some(token));
 
         // SecondSpace
         let global_pos = token.inside::<SecondSpace>();
-        assert_eq!(SecondSpace::is::<SpecialToken>(global_pos), Some(token));
+        assert_eq!(SecondSpace::try_as::<SpecialToken>(global_pos), Some(token));
 
         // ThirdSpace
         let global_pos = token.inside::<ThirdSpace>();
-        assert_eq!(ThirdSpace::is::<SpecialToken>(global_pos), Some(token));
+        assert_eq!(ThirdSpace::try_as::<SpecialToken>(global_pos), Some(token));
     }
 
     // Test range token round trips for a few values
     for local_pos in [0, 25, 49, 99] {
         // TextRange in FirstSpace
         if let Some(global_pos) = TextRange::inside::<FirstSpace>(local_pos) {
-            if let Some(TextRange(recovered_local)) = FirstSpace::is::<TextRange>(global_pos) {
+            if let Some(TextRange(recovered_local)) = FirstSpace::try_as::<TextRange>(global_pos) {
                 assert_eq!(recovered_local, local_pos);
             }
         }
 
         // TextRange in ThirdSpace
         if let Some(global_pos) = TextRange::inside::<ThirdSpace>(local_pos) {
-            if let Some(TextRange(recovered_local)) = ThirdSpace::is::<TextRange>(global_pos) {
+            if let Some(TextRange(recovered_local)) = ThirdSpace::try_as::<TextRange>(global_pos) {
                 assert_eq!(recovered_local, local_pos);
             }
         }
@@ -368,7 +395,8 @@ fn test_round_trip_consistency() {
         if local_pos < 50 {
             // AudioRange only goes to 50
             if let Some(global_pos) = AudioRange::inside::<SecondSpace>(local_pos) {
-                if let Some(AudioRange(recovered_local)) = SecondSpace::is::<AudioRange>(global_pos)
+                if let Some(AudioRange(recovered_local)) =
+                    SecondSpace::try_as::<AudioRange>(global_pos)
                 {
                     assert_eq!(recovered_local, local_pos);
                 }
@@ -376,7 +404,8 @@ fn test_round_trip_consistency() {
 
             // AudioRange in ThirdSpace
             if let Some(global_pos) = AudioRange::inside::<ThirdSpace>(local_pos) {
-                if let Some(AudioRange(recovered_local)) = ThirdSpace::is::<AudioRange>(global_pos)
+                if let Some(AudioRange(recovered_local)) =
+                    ThirdSpace::try_as::<AudioRange>(global_pos)
                 {
                     assert_eq!(recovered_local, local_pos);
                 }
@@ -386,25 +415,28 @@ fn test_round_trip_consistency() {
 }
 
 #[test]
-fn test_cross_space_isolation() {
+fn test_cross_space_try_asolation() {
     // Verify that tokens from one space don't interfere with another
 
     // A position that's CommonToken in FirstSpace should not be CommonToken in SecondSpace
-    assert_eq!(FirstSpace::is::<CommonToken>(0), Some(CommonToken::Alpha));
-    assert_eq!(SecondSpace::is::<CommonToken>(0), None); // This is SpecialToken in SecondSpace
+    assert_eq!(
+        FirstSpace::try_as::<CommonToken>(0),
+        Some(CommonToken::Alpha)
+    );
+    assert_eq!(SecondSpace::try_as::<CommonToken>(0), None); // Thtry_as try_as SpecialToken in SecondSpace
 
     // A position that's SpecialToken in SecondSpace should not be SpecialToken in FirstSpace
     assert_eq!(
-        SecondSpace::is::<SpecialToken>(0),
+        SecondSpace::try_as::<SpecialToken>(0),
         Some(SpecialToken::Start)
     );
-    assert_eq!(FirstSpace::is::<SpecialToken>(0), None); // This is CommonToken in FirstSpace
+    assert_eq!(FirstSpace::try_as::<SpecialToken>(0), None); // Thtry_as try_as CommonToken in FirstSpace
 
-    // Verify range isolation
-    assert_eq!(FirstSpace::is::<TextRange>(5), Some(TextRange(0)));
-    assert_eq!(SecondSpace::is::<AudioRange>(5), Some(AudioRange(3))); // This is AudioRange in SecondSpace
+    // Verify range try_asolation
+    assert_eq!(FirstSpace::try_as::<TextRange>(5), Some(TextRange(0)));
+    assert_eq!(SecondSpace::try_as::<AudioRange>(5), Some(AudioRange(3))); // Thtry_as try_as AudioRange in SecondSpace
 
     // Test that high positions in one space don't leak into another
-    assert_eq!(FirstSpace::is::<CommonToken>(52), None); // This would be CommonToken in SecondSpace
-    assert_eq!(SecondSpace::is::<CommonToken>(2), None); // This would be CommonToken in FirstSpace
+    assert_eq!(FirstSpace::try_as::<CommonToken>(52), None); // Thtry_as would be CommonToken in SecondSpace
+    assert_eq!(SecondSpace::try_as::<CommonToken>(2), None); // Thtry_as would be CommonToken in FirstSpace
 }

@@ -37,7 +37,7 @@ where
     type Error = TokauError;
 
     fn try_from(id: u32) -> Result<Self, Self::Error> {
-        if let Some(token) = Self::is::<T>(id) {
+        if let Some(token) = Self::try_as::<T>(id) {
             return Ok(NameTokenSpace::Token(token));
         }
         if let Some(offset) = Self::remainder(id) {
@@ -62,7 +62,7 @@ where
     type Error = TokauError;
 
     fn try_from(id: u32) -> Result<Self, Self::Error> {
-        if let Some(token) = Self::is::<T>(id) {
+        if let Some(token) = Self::try_as::<T>(id) {
             return Ok(RangeTokenSpace::Token(token));
         }
         if let Some(offset) = Self::remainder(id) {
@@ -91,16 +91,16 @@ mod tests {
         let mao_fn = MaoToken::Fn.inside::<NameTokenSpace<MaoToken>>();
         assert_eq!(mao_fn, 2); // Direct value mapping
 
-        // Test is() with NameTokenSpace
+        // Test try_as() with NameTokenSpace
         assert_eq!(
-            NameTokenSpace::<MaoToken>::is::<MaoToken>(0),
+            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
         assert_eq!(
-            NameTokenSpace::<MaoToken>::is::<MaoToken>(3),
+            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(3),
             Some(MaoToken::Struct)
         );
-        assert_eq!(NameTokenSpace::<MaoToken>::is::<MaoToken>(4), None); // Out of range
+        assert_eq!(NameTokenSpace::<MaoToken>::try_as::<MaoToken>(4), None); // Out of range
 
         // Test with GingerToken
         let ginger_audio = GingerToken::AudioStart.inside::<NameTokenSpace<GingerToken>>();
@@ -111,7 +111,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .is::<NameTokenSpace<MaoToken>, MaoToken>()
+            .try_as::<NameTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -135,7 +135,7 @@ mod tests {
         let mao_start = MaoToken::ProgramStart.inside::<NameTokenSpace<MaoToken>>();
         assert_eq!(mao_start, 0);
         assert_eq!(
-            NameTokenSpace::<MaoToken>::is::<MaoToken>(0),
+            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
 
@@ -151,7 +151,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .is::<NameTokenSpace<MaoToken>, MaoToken>()
+            .try_as::<NameTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
