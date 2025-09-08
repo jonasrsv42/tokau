@@ -44,9 +44,11 @@ pub fn range(args: TokenStream, input: TokenStream) -> TokenStream {
 
         impl #impl_generics ::tokau::Token for #name #ty_generics #where_clause {
             const COUNT: u32 = #count;
-        }
 
-        impl #impl_generics ::tokau::RangeToken for #name #ty_generics #where_clause {}
+            fn value(&self) -> u32 {
+                self.0
+            }
+        }
 
         impl #impl_generics TryFrom<u32> for #name #ty_generics #where_clause {
             type Error = ::tokau::TokauError;
@@ -242,9 +244,7 @@ pub fn derive_name(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         impl ::tokau::Token for #name {
             const COUNT: u32 = #count;
-        }
 
-        impl ::tokau::NameToken for #name {
             fn value(&self) -> u32 {
                 *self as u32
             }

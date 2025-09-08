@@ -1,14 +1,11 @@
 use crate::error::TokauError;
-use crate::token::{NameToken, Token};
+use crate::token::Token;
 
 pub trait Position<TokenType: Token> {
     const OFFSET: u32;
 
-    // For NameToken tokens - convert instance to global position
-    fn at(token: &TokenType) -> u32
-    where
-        TokenType: NameToken,
-    {
+    // For Token instances - convert instance to global position
+    fn at(token: TokenType) -> u32 {
         token.value() + Self::OFFSET
     }
 }
@@ -26,7 +23,15 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
         value.checked_sub(start).and_then(|v| T::try_from(v).ok())
     }
 
-    // Return remainders outside reserved range, thtry_as can
+    // Get the global position of any Token in this space
+    fn position_of<T: Token>(token: T) -> u32
+    where
+        Self: Position<T>,
+    {
+        <Self as Position<T>>::at(token)
+    }
+
+    // Return remainders outside reserved range, this can
     // overlap and exceed any dynamic vocabulary.
     fn remainder(value: u32) -> Option<u32> {
         value.checked_sub(Self::RESERVED)
@@ -36,8 +41,8 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::token::Token;
     use crate::token::tests::*;
-    use crate::token::{NameToken, RangeToken};
 
     impl Position<MaoToken> for GingerSpace {
         const OFFSET: u32 = GingerToken::COUNT;
@@ -149,14 +154,14 @@ pub(crate) mod tests {
 
     #[test]
     fn test_accessing_tokens_in_space() {
-        assert_eq!(GingerToken::TextStart.inside::<GingerSpace>(), 0);
-        assert_eq!(MaoToken::ProgramStart.inside::<GingerSpace>(), 5);
-        assert_eq!(SingleToken::Single.inside::<GingerSpace>(), 9);
+        assert_eq!(GingerSpace::position_of(GingerToken::TextStart), 0);
+        assert_eq!(GingerSpace::position_of(MaoToken::ProgramStart), 5);
+        assert_eq!(GingerSpace::position_of(SingleToken::Single), 9);
 
-        let mao_fn = MaoToken::Fn.inside::<GingerSpace>();
+        let mao_fn = GingerSpace::position_of(MaoToken::Fn);
         assert_eq!(mao_fn, 7);
 
-        let ginger_audio = GingerToken::AudioStart.inside::<GingerSpace>();
+        let ginger_audio = GingerSpace::position_of(GingerToken::AudioStart);
         assert_eq!(ginger_audio, 2);
     }
 
@@ -198,11 +203,11 @@ pub(crate) mod tests {
 
     #[test]
     fn test_range_tokens() {
-        // Test RangeToken::inside method
-        assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // First position
-        assert_eq!(TextTokens::inside::<GingerSpace>(1), Some(11)); // Second position
-        assert_eq!(TextTokens::inside::<GingerSpace>(999), Some(1009)); // Last position
-        assert_eq!(TextTokens::inside::<GingerSpace>(1000), None); // Out of bounds
+        // Test RangeToken position_of method
+        assert_eq!(GingerSpace::position_of(TextTokens(0)), 10); // First position
+        assert_eq!(GingerSpace::position_of(TextTokens(1)), 11); // Second position
+        assert_eq!(GingerSpace::position_of(TextTokens(999)), 1009); // Last position
+        // TextTokens(1000) would be out of bounds for the token itself
     }
 
     #[test]
@@ -310,19 +315,18 @@ pub(crate) mod tests {
             Some(TextTokens(990))
         ); // Global 1000 -> Local 990
 
-        // Test that local offset correctly maps to global position using inside()
-        assert_eq!(TextTokens::inside::<GingerSpace>(0), Some(10)); // Local 0 -> Global 10
-        assert_eq!(TextTokens::inside::<GingerSpace>(40), Some(50)); // Local 40 -> Global 50
-        assert_eq!(TextTokens::inside::<GingerSpace>(490), Some(500)); // Local 490 -> Global 500 
-        assert_eq!(TextTokens::inside::<GingerSpace>(990), Some(1000)); // Local 990 -> Global 1000
+        // Test that local offset correctly maps to global position using position_of
+        assert_eq!(GingerSpace::position_of(TextTokens(0)), 10); // Local 0 -> Global 10
+        assert_eq!(GingerSpace::position_of(TextTokens(40)), 50); // Local 40 -> Global 50
+        assert_eq!(GingerSpace::position_of(TextTokens(490)), 500); // Local 490 -> Global 500 
+        assert_eq!(GingerSpace::position_of(TextTokens(990)), 1000); // Local 990 -> Global 1000
 
         // Test round-trip: global -> local -> global
         let global_pos = 250u32;
         if let Some(local_token) = GingerSpace::try_as::<TextTokens>(global_pos) {
             assert_eq!(local_token, TextTokens(240)); // 250 - 10 = 240
-            if let Some(back_to_global) = TextTokens::inside::<GingerSpace>(local_token.0) {
-                assert_eq!(back_to_global, global_pos); // Should get 250 back
-            }
+            let back_to_global = GingerSpace::position_of(TextTokens(local_token.0));
+            assert_eq!(back_to_global, global_pos); // Should get 250 back
         }
     }
 
@@ -330,8 +334,8 @@ pub(crate) mod tests {
     fn test_offset_calculations() {
         // Same token should have same value in both spaces (since they have same static layout)
         let mao_token = MaoToken::ProgramStart;
-        let value_space1 = mao_token.inside::<GingerSpace>();
-        let value_space2 = mao_token.inside::<DynamicGingerSpace>();
+        let value_space1 = GingerSpace::position_of(mao_token);
+        let value_space2 = DynamicGingerSpace::position_of(mao_token);
         assert_eq!(value_space1, value_space2);
 
         // Test that try_as() works correctly for both spaces
@@ -404,8 +408,8 @@ pub(crate) mod tests {
         }
 
         // Test that same tokens have different values in different spaces
-        let mao_in_dynamic = MaoToken::ProgramStart.inside::<DynamicGingerSpace>();
-        let mao_in_alt = MaoToken::ProgramStart.inside::<AlternativeSpace>();
+        let mao_in_dynamic = DynamicGingerSpace::position_of(MaoToken::ProgramStart);
+        let mao_in_alt = AlternativeSpace::position_of(MaoToken::ProgramStart);
 
         // In DynamicGingerSpace: GingerToken(5) + MaoToken offset = 5 + 0 = 5
         // In AlternativeSpace: MaoToken offset = 0 + 0 = 0

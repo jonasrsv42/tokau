@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, Space, Token, TokenSpace};
+use tokau::{Name, Position, Space, Token, TokenSpace};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]
@@ -27,15 +27,15 @@ enum MyTokenSpace {
 #[test]
 fn test_token_space_with_derived_tokens() {
     // Test ControlToken positions
-    assert_eq!(ControlToken::Start.inside::<MyTokenSpace>(), 0);
-    assert_eq!(ControlToken::Stop.inside::<MyTokenSpace>(), 1);
-    assert_eq!(ControlToken::Pause.inside::<MyTokenSpace>(), 2);
-    assert_eq!(ControlToken::Resume.inside::<MyTokenSpace>(), 3);
+    assert_eq!(MyTokenSpace::position_of(ControlToken::Start), 0);
+    assert_eq!(MyTokenSpace::position_of(ControlToken::Stop), 1);
+    assert_eq!(MyTokenSpace::position_of(ControlToken::Pause), 2);
+    assert_eq!(MyTokenSpace::position_of(ControlToken::Resume), 3);
 
     // Test DataToken positions (offset by ControlToken::COUNT = 4)
-    assert_eq!(DataToken::Read.inside::<MyTokenSpace>(), 4);
-    assert_eq!(DataToken::Write.inside::<MyTokenSpace>(), 5);
-    assert_eq!(DataToken::Delete.inside::<MyTokenSpace>(), 6);
+    assert_eq!(MyTokenSpace::position_of(DataToken::Read), 4);
+    assert_eq!(MyTokenSpace::position_of(DataToken::Write), 5);
+    assert_eq!(MyTokenSpace::position_of(DataToken::Delete), 6);
 
     // Test reverse lookups
     assert_eq!(

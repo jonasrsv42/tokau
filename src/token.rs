@@ -1,31 +1,7 @@
-use crate::space::Position;
 // Base trait for anything that can be positioned in a token space at compile time.
 pub trait Token {
     const COUNT: u32;
-}
-
-// For discrete/reserved tokens with specific values and instances
-pub trait NameToken: Token + Sized {
     fn value(&self) -> u32;
-
-    fn inside<S: Position<Self>>(&self) -> u32 {
-        S::at(self)
-    }
-}
-
-// For range tokens without specific instances - just represents a contiguous range
-pub trait RangeToken: Token {
-    // Convert position within range to global position
-    fn inside<S: Position<Self>>(position: u32) -> Option<u32>
-    where
-        Self: Sized,
-    {
-        if position < Self::COUNT {
-            Some(S::OFFSET + position)
-        } else {
-            None
-        }
-    }
 }
 
 #[cfg(test)]
@@ -44,9 +20,7 @@ pub mod tests {
 
     impl Token for MaoToken {
         const COUNT: u32 = 4;
-    }
 
-    impl NameToken for MaoToken {
         fn value(&self) -> u32 {
             *self as u32
         }
@@ -77,9 +51,7 @@ pub mod tests {
 
     impl Token for SingleToken {
         const COUNT: u32 = 1;
-    }
 
-    impl NameToken for SingleToken {
         fn value(&self) -> u32 {
             *self as u32
         }
@@ -111,9 +83,7 @@ pub mod tests {
 
     impl Token for GingerToken {
         const COUNT: u32 = 5;
-    }
 
-    impl NameToken for GingerToken {
         fn value(&self) -> u32 {
             *self as u32
         }
@@ -143,9 +113,11 @@ pub mod tests {
 
     impl Token for TextTokens {
         const COUNT: u32 = 1000; // 1000 text tokens
-    }
 
-    impl RangeToken for TextTokens {}
+        fn value(&self) -> u32 {
+            self.0
+        }
+    }
 
     impl TryFrom<u32> for TextTokens {
         type Error = TokauError;

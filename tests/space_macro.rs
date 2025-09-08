@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, RangeToken, Space, Token, TokenSpace, range};
+use tokau::{Name, Position, Space, Token, TokenSpace, range};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]
@@ -34,14 +34,14 @@ fn test_space_macro() {
     assert_eq!(MySpace::RESERVED, 3 + 1000);
 
     // Test static token operations
-    assert_eq!(ControlToken::Start.inside::<MySpace>(), 0);
-    assert_eq!(ControlToken::Stop.inside::<MySpace>(), 1);
-    assert_eq!(ControlToken::Pause.inside::<MySpace>(), 2);
+    assert_eq!(MySpace::position_of(ControlToken::Start), 0);
+    assert_eq!(MySpace::position_of(ControlToken::Stop), 1);
+    assert_eq!(MySpace::position_of(ControlToken::Pause), 2);
 
     // Test range token operations
-    assert_eq!(TextTokens::inside::<MySpace>(0), Some(3));
-    assert_eq!(TextTokens::inside::<MySpace>(999), Some(1002));
-    assert_eq!(TextTokens::inside::<MySpace>(1000), None);
+    assert_eq!(MySpace::position_of(TextTokens(0)), 3);
+    assert_eq!(MySpace::position_of(TextTokens(999)), 1002);
+    // TextTokens(1000) would be out of bounds for the token itself
 
     // Test reverse lookups
     assert_eq!(

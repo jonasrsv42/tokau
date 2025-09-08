@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, RangeToken, Space, Token, TokenSpace, range};
+use tokau::{Name, Position, Space, Token, TokenSpace, range};
 
 // Test boundary conditions with small token counts
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
@@ -85,7 +85,7 @@ fn test_minimal_space_boundaries() {
     assert_eq!(MinimalSpace::try_from(1).ok(), None);
 
     // Test round trip
-    assert_eq!(TinyToken::Only.inside::<MinimalSpace>(), 0);
+    assert_eq!(MinimalSpace::position_of(TinyToken::Only), 0);
 }
 
 #[test]
@@ -122,9 +122,9 @@ fn test_boundary_space_edge_cases() {
     assert_eq!(BoundarySpace::try_from(2).ok(), None);
 
     // Test round trips
-    assert_eq!(SingleRangeToken::inside::<BoundarySpace>(0), Some(0));
-    assert_eq!(SingleRangeToken::inside::<BoundarySpace>(1), None); // Out of bounds
-    assert_eq!(TinyToken::Only.inside::<BoundarySpace>(), 1);
+    assert_eq!(BoundarySpace::position_of(SingleRangeToken(0)), 0);
+    // SingleRangeToken(1) would be out of bounds for the token itself
+    assert_eq!(BoundarySpace::position_of(TinyToken::Only), 1);
 }
 
 #[test]
@@ -296,40 +296,36 @@ fn test_round_trips_complex_layout() {
     // Test round trips for each token type in complex layout
 
     // FirstName round trips
-    assert_eq!(FirstName::A.inside::<ComplexAlternatingSpace>(), 0);
-    assert_eq!(FirstName::B.inside::<ComplexAlternatingSpace>(), 1);
+    assert_eq!(ComplexAlternatingSpace::position_of(FirstName::A), 0);
+    assert_eq!(ComplexAlternatingSpace::position_of(FirstName::B), 1);
 
     // FirstRange round trips
-    assert_eq!(FirstRange::inside::<ComplexAlternatingSpace>(0), Some(2));
-    assert_eq!(FirstRange::inside::<ComplexAlternatingSpace>(1), Some(3));
-    assert_eq!(FirstRange::inside::<ComplexAlternatingSpace>(2), Some(4));
-    assert_eq!(FirstRange::inside::<ComplexAlternatingSpace>(3), None); // Out of bounds
+    assert_eq!(ComplexAlternatingSpace::position_of(FirstRange(0)), 2);
+    assert_eq!(ComplexAlternatingSpace::position_of(FirstRange(1)), 3);
+    assert_eq!(ComplexAlternatingSpace::position_of(FirstRange(2)), 4);
+    // FirstRange(3) would be out of bounds for the token itself
 
     // SecondName round trips
-    assert_eq!(SecondName::X.inside::<ComplexAlternatingSpace>(), 5);
-    assert_eq!(SecondName::Y.inside::<ComplexAlternatingSpace>(), 6);
-    assert_eq!(SecondName::Z.inside::<ComplexAlternatingSpace>(), 7);
+    assert_eq!(ComplexAlternatingSpace::position_of(SecondName::X), 5);
+    assert_eq!(ComplexAlternatingSpace::position_of(SecondName::Y), 6);
+    assert_eq!(ComplexAlternatingSpace::position_of(SecondName::Z), 7);
 
     // SecondRange round trips
-    assert_eq!(SecondRange::inside::<ComplexAlternatingSpace>(0), Some(8));
-    assert_eq!(SecondRange::inside::<ComplexAlternatingSpace>(1), Some(9));
-    assert_eq!(SecondRange::inside::<ComplexAlternatingSpace>(2), None); // Out of bounds
+    assert_eq!(ComplexAlternatingSpace::position_of(SecondRange(0)), 8);
+    assert_eq!(ComplexAlternatingSpace::position_of(SecondRange(1)), 9);
+    // SecondRange(2) would be out of bounds for the token itself
 
     // Test that we can go global -> local -> global and get the same value
     for global_pos in [2u32, 3, 4, 5, 6, 7, 8, 9] {
         if let Some(decoded) = ComplexAlternatingSpace::try_from(global_pos).ok() {
             match decoded {
                 ComplexAlternatingSpace::FirstRange(FirstRange(local)) => {
-                    if let Some(back_global) = FirstRange::inside::<ComplexAlternatingSpace>(local)
-                    {
-                        assert_eq!(back_global, global_pos);
-                    }
+                    let back_global = ComplexAlternatingSpace::position_of(FirstRange(local));
+                    assert_eq!(back_global, global_pos);
                 }
                 ComplexAlternatingSpace::SecondRange(SecondRange(local)) => {
-                    if let Some(back_global) = SecondRange::inside::<ComplexAlternatingSpace>(local)
-                    {
-                        assert_eq!(back_global, global_pos);
-                    }
+                    let back_global = ComplexAlternatingSpace::position_of(SecondRange(local));
+                    assert_eq!(back_global, global_pos);
                 }
                 _ => {} // NameTokens don't have local offsets to test
             }

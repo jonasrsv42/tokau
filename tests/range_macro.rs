@@ -1,4 +1,4 @@
-use tokau::{RangeToken, Token, TokenSpace, range};
+use tokau::{Token, TokenSpace, range};
 
 #[derive(Debug, PartialEq)]
 #[range(1000)]
@@ -33,12 +33,12 @@ fn test_range_token_inside() {
         Audio(AudioTokens),
     }
 
-    // Test RangeToken::inside
-    assert_eq!(TextTokens::inside::<TestSpace>(0), Some(0));
-    assert_eq!(TextTokens::inside::<TestSpace>(999), Some(999));
-    assert_eq!(TextTokens::inside::<TestSpace>(1000), None); // Out of bounds
+    // Test range token position calculation
+    assert_eq!(TestSpace::position_of(TextTokens(0)), 0);
+    assert_eq!(TestSpace::position_of(TextTokens(999)), 999);
+    // TextTokens(1000) would be out of bounds for the token itself
 
-    assert_eq!(AudioTokens::inside::<TestSpace>(0), Some(1000));
-    assert_eq!(AudioTokens::inside::<TestSpace>(499), Some(1499));
-    assert_eq!(AudioTokens::inside::<TestSpace>(500), None); // Out of bounds
+    assert_eq!(TestSpace::position_of(AudioTokens(0)), 1000);
+    assert_eq!(TestSpace::position_of(AudioTokens(499)), 1499);
+    // AudioTokens(500) would be out of bounds for the token itself
 }

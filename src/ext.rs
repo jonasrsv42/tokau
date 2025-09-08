@@ -1,6 +1,6 @@
 use crate::error::TokauError;
 use crate::space::{Position, TokenSpace};
-use crate::token::NameToken;
+use crate::token::Token;
 
 // Extension trait for filtering iterables by token type
 pub trait TokenFilter: Iterator<Item = u32> + Sized {
@@ -8,7 +8,7 @@ pub trait TokenFilter: Iterator<Item = u32> + Sized {
         self.filter_map(|id| S::remainder(id).map(|_| id))
     }
 
-    fn try_as<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
+    fn try_as<S: TokenSpace, T: Token>(self) -> impl Iterator<Item = T>
     where
         S: Position<T>,
         T: TryFrom<u32, Error = TokauError>,
@@ -72,13 +72,13 @@ mod tests {
             .clone()
             .into_iter()
             .try_as::<DynamicGingerSpace, GingerToken>()
-            .map(|token| token.inside::<DynamicGingerSpace>())
+            .map(|token| DynamicGingerSpace::position_of(token))
             .chain(
                 tokens
                     .clone()
                     .into_iter()
                     .try_as::<DynamicGingerSpace, MaoToken>()
-                    .map(|token| token.inside::<DynamicGingerSpace>()),
+                    .map(|token| DynamicGingerSpace::position_of(token)),
             )
             .collect();
         assert_eq!(all_special_tokens, vec![0, 1, 5, 6, 7, 8]);

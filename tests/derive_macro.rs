@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, TokauError, Token};
+use tokau::{Name, TokauError, Token};
 
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]

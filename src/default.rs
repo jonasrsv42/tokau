@@ -1,109 +1,71 @@
 use crate::error::TokauError;
 use crate::space::{Position, TokenSpace};
-use crate::token::{NameToken, RangeToken};
+use crate::token::Token;
 
 // Create separate types to avoid conflicting implementations
 #[derive(Debug, PartialEq)]
-pub enum NameTokenSpace<T: NameToken> {
+pub enum DefaultTokenSpace<T: Token> {
     Token(T),
     Dynamic(u32),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum RangeTokenSpace<T: RangeToken> {
-    Token(T),
-    Dynamic(u32),
-}
-
-impl<T: NameToken> Position<T> for NameTokenSpace<T> {
+impl<T: Token> Position<T> for DefaultTokenSpace<T> {
     const OFFSET: u32 = 0;
 }
 
-impl<T: RangeToken> Position<T> for RangeTokenSpace<T> {
-    const OFFSET: u32 = 0;
-}
-
-impl<T> TokenSpace for NameTokenSpace<T>
+impl<T> TokenSpace for DefaultTokenSpace<T>
 where
-    T: NameToken + TryFrom<u32, Error = TokauError>,
+    T: Token + TryFrom<u32, Error = TokauError>,
 {
     const RESERVED: u32 = T::COUNT;
 }
 
-impl<T> TryFrom<u32> for NameTokenSpace<T>
+impl<T> TryFrom<u32> for DefaultTokenSpace<T>
 where
-    T: NameToken + TryFrom<u32, Error = TokauError>,
+    T: Token + TryFrom<u32, Error = TokauError>,
 {
     type Error = TokauError;
 
     fn try_from(id: u32) -> Result<Self, Self::Error> {
         if let Some(token) = Self::try_as::<T>(id) {
-            return Ok(NameTokenSpace::Token(token));
+            return Ok(DefaultTokenSpace::Token(token));
         }
         if let Some(offset) = Self::remainder(id) {
-            return Ok(NameTokenSpace::Dynamic(offset));
+            return Ok(DefaultTokenSpace::Dynamic(offset));
         }
         // Since this has dynamic tokens, it accepts all values
         unreachable!("NameTokenSpace with dynamic tokens accepts all values")
     }
 }
 
-impl<T> TokenSpace for RangeTokenSpace<T>
-where
-    T: RangeToken + TryFrom<u32, Error = TokauError>,
-{
-    const RESERVED: u32 = T::COUNT;
-}
-
-impl<T> TryFrom<u32> for RangeTokenSpace<T>
-where
-    T: RangeToken + TryFrom<u32, Error = TokauError>,
-{
-    type Error = TokauError;
-
-    fn try_from(id: u32) -> Result<Self, Self::Error> {
-        if let Some(token) = Self::try_as::<T>(id) {
-            return Ok(RangeTokenSpace::Token(token));
-        }
-        if let Some(offset) = Self::remainder(id) {
-            return Ok(RangeTokenSpace::Dynamic(offset));
-        }
-        // Since this has dynamic tokens, it accepts all values
-        unreachable!("RangeTokenSpace with dynamic tokens accepts all values")
-    }
-}
-
-// Remove Default implementation - doesn't make sense for enum without knowing which variant to use
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ext::TokenFilter;
-    use crate::token::NameToken;
     use crate::token::tests::*;
 
     #[test]
     fn test_default_space() {
         // Test NameTokenSpace with NameToken tokens
-        let mao_start = MaoToken::ProgramStart.inside::<NameTokenSpace<MaoToken>>();
+        let mao_start = DefaultTokenSpace::<MaoToken>::position_of(MaoToken::ProgramStart);
         assert_eq!(mao_start, 0); // Should be at offset 0
 
-        let mao_fn = MaoToken::Fn.inside::<NameTokenSpace<MaoToken>>();
+        let mao_fn = DefaultTokenSpace::<MaoToken>::position_of(MaoToken::Fn);
         assert_eq!(mao_fn, 2); // Direct value mapping
 
         // Test try_as() with NameTokenSpace
         assert_eq!(
-            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
+            DefaultTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
         assert_eq!(
-            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(3),
+            DefaultTokenSpace::<MaoToken>::try_as::<MaoToken>(3),
             Some(MaoToken::Struct)
         );
-        assert_eq!(NameTokenSpace::<MaoToken>::try_as::<MaoToken>(4), None); // Out of range
+        assert_eq!(DefaultTokenSpace::<MaoToken>::try_as::<MaoToken>(4), None); // Out of range
 
         // Test with GingerToken
-        let ginger_audio = GingerToken::AudioStart.inside::<NameTokenSpace<GingerToken>>();
+        let ginger_audio = DefaultTokenSpace::<GingerToken>::position_of(GingerToken::AudioStart);
         assert_eq!(ginger_audio, 2); // Direct value mapping
 
         // Test filtering with NameTokenSpace
@@ -111,7 +73,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .try_as::<NameTokenSpace<MaoToken>, MaoToken>()
+            .try_as::<DefaultTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -124,25 +86,25 @@ mod tests {
         );
 
         // Test that NameTokenSpace dynamic method works without bounds
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(0), None); // In static range
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic position
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(100), Some(96)); // Dynamic position 96
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(0), None); // In static range
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic position
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(100), Some(96)); // Dynamic position 96
     }
 
     #[test]
     fn test_default_space_with_dynamic_tokens() {
         // Test static tokens still work
-        let mao_start = MaoToken::ProgramStart.inside::<NameTokenSpace<MaoToken>>();
+        let mao_start = DefaultTokenSpace::<MaoToken>::position_of(MaoToken::ProgramStart);
         assert_eq!(mao_start, 0);
         assert_eq!(
-            NameTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
+            DefaultTokenSpace::<MaoToken>::try_as::<MaoToken>(0),
             Some(MaoToken::ProgramStart)
         );
 
         // Test dynamic tokens (no bounds checking now)
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic token
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(103), Some(99)); // Dynamic token at offset 99
-        assert_eq!(NameTokenSpace::<MaoToken>::remainder(2), None); // In static range, not dynamic
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic token
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(103), Some(99)); // Dynamic token at offset 99
+        assert_eq!(DefaultTokenSpace::<MaoToken>::remainder(2), None); // In static range, not dynamic
 
         // Test filtering with dynamic tokens
         let tokens = vec![0, 1, 2, 3, 4, 5, 50, 103, 104, 200];
@@ -151,7 +113,7 @@ mod tests {
         let mao_tokens: Vec<MaoToken> = tokens
             .clone()
             .into_iter()
-            .try_as::<NameTokenSpace<MaoToken>, MaoToken>()
+            .try_as::<DefaultTokenSpace<MaoToken>, MaoToken>()
             .collect();
         assert_eq!(
             mao_tokens,
@@ -166,7 +128,7 @@ mod tests {
         // Filter dynamic tokens (no longer bounded by count)
         let dynamic_tokens: Vec<u32> = tokens
             .into_iter()
-            .remainders::<NameTokenSpace<MaoToken>>()
+            .remainders::<DefaultTokenSpace<MaoToken>>()
             .collect();
         assert_eq!(dynamic_tokens, vec![4, 5, 50, 103, 104, 200]); // All tokens >= RESERVED
     }

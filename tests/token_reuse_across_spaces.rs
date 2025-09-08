@@ -1,4 +1,4 @@
-use tokau::{Name, NameToken, Position, RangeToken, Space, TokauError, Token, TokenSpace, range};
+use tokau::{Name, Position, Space, TokauError, Token, TokenSpace, range};
 
 // Define reusable token types that will be used in multiple spaces
 #[derive(Name, Debug, PartialEq, Clone, Copy)]
@@ -16,11 +16,11 @@ enum SpecialToken {
     End,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[range(100)]
 struct TextRange(u32);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[range(50)]
 struct AudioRange(u32);
 
@@ -80,47 +80,47 @@ fn test_token_positions_across_spaces() {
 #[test]
 fn test_token_inside_different_spaces() {
     // Test CommonToken::Alpha in different spaces
-    assert_eq!(CommonToken::Alpha.inside::<FirstSpace>(), 0);
-    assert_eq!(CommonToken::Alpha.inside::<SecondSpace>(), 52);
-    assert_eq!(CommonToken::Alpha.inside::<ThirdSpace>(), 150);
-    assert_eq!(CommonToken::Alpha.inside::<MinimalSpace>(), 0);
+    assert_eq!(FirstSpace::position_of(CommonToken::Alpha), 0);
+    assert_eq!(SecondSpace::position_of(CommonToken::Alpha), 52);
+    assert_eq!(ThirdSpace::position_of(CommonToken::Alpha), 150);
+    assert_eq!(MinimalSpace::position_of(CommonToken::Alpha), 0);
 
     // Test CommonToken::Gamma in different spaces
-    assert_eq!(CommonToken::Gamma.inside::<FirstSpace>(), 2);
-    assert_eq!(CommonToken::Gamma.inside::<SecondSpace>(), 54);
-    assert_eq!(CommonToken::Gamma.inside::<ThirdSpace>(), 152);
-    assert_eq!(CommonToken::Gamma.inside::<MinimalSpace>(), 2);
+    assert_eq!(FirstSpace::position_of(CommonToken::Gamma), 2);
+    assert_eq!(SecondSpace::position_of(CommonToken::Gamma), 54);
+    assert_eq!(ThirdSpace::position_of(CommonToken::Gamma), 152);
+    assert_eq!(MinimalSpace::position_of(CommonToken::Gamma), 2);
 
     // Test SpecialToken::Start in different spaces
-    assert_eq!(SpecialToken::Start.inside::<FirstSpace>(), 3);
-    assert_eq!(SpecialToken::Start.inside::<SecondSpace>(), 0);
-    assert_eq!(SpecialToken::Start.inside::<ThirdSpace>(), 153);
+    assert_eq!(FirstSpace::position_of(SpecialToken::Start), 3);
+    assert_eq!(SecondSpace::position_of(SpecialToken::Start), 0);
+    assert_eq!(ThirdSpace::position_of(SpecialToken::Start), 153);
 
     // Test SpecialToken::End in different spaces
-    assert_eq!(SpecialToken::End.inside::<FirstSpace>(), 4);
-    assert_eq!(SpecialToken::End.inside::<SecondSpace>(), 1);
-    assert_eq!(SpecialToken::End.inside::<ThirdSpace>(), 154);
+    assert_eq!(FirstSpace::position_of(SpecialToken::End), 4);
+    assert_eq!(SecondSpace::position_of(SpecialToken::End), 1);
+    assert_eq!(ThirdSpace::position_of(SpecialToken::End), 154);
 }
 
 #[test]
 fn test_range_token_inside_different_spaces() {
     // Test TextRange in different spaces
-    assert_eq!(TextRange::inside::<FirstSpace>(0), Some(5));
-    assert_eq!(TextRange::inside::<FirstSpace>(99), Some(104));
-    assert_eq!(TextRange::inside::<FirstSpace>(100), None); // Out of bounds
+    assert_eq!(FirstSpace::position_of(TextRange(0)), 5);
+    assert_eq!(FirstSpace::position_of(TextRange(99)), 104);
+    // TextRange(100) would be out of bounds for the token itself
 
-    assert_eq!(TextRange::inside::<ThirdSpace>(0), Some(0));
-    assert_eq!(TextRange::inside::<ThirdSpace>(99), Some(99));
-    assert_eq!(TextRange::inside::<ThirdSpace>(100), None); // Out of bounds
+    assert_eq!(ThirdSpace::position_of(TextRange(0)), 0);
+    assert_eq!(ThirdSpace::position_of(TextRange(99)), 99);
+    // TextRange(100) would be out of bounds for the token itself
 
     // Test AudioRange in different spaces
-    assert_eq!(AudioRange::inside::<SecondSpace>(0), Some(2));
-    assert_eq!(AudioRange::inside::<SecondSpace>(49), Some(51));
-    assert_eq!(AudioRange::inside::<SecondSpace>(50), None); // Out of bounds
+    assert_eq!(SecondSpace::position_of(AudioRange(0)), 2);
+    assert_eq!(SecondSpace::position_of(AudioRange(49)), 51);
+    // AudioRange(50) would be out of bounds for the token itself
 
-    assert_eq!(AudioRange::inside::<ThirdSpace>(0), Some(100));
-    assert_eq!(AudioRange::inside::<ThirdSpace>(49), Some(149));
-    assert_eq!(AudioRange::inside::<ThirdSpace>(50), None); // Out of bounds
+    assert_eq!(ThirdSpace::position_of(AudioRange(0)), 100);
+    assert_eq!(ThirdSpace::position_of(AudioRange(49)), 149);
+    // AudioRange(50) would be out of bounds for the token itself
 }
 
 #[test]
@@ -342,19 +342,19 @@ fn test_round_trip_constry_astency() {
 
     for token in common_tokens {
         // FirstSpace
-        let global_pos = token.inside::<FirstSpace>();
+        let global_pos = FirstSpace::position_of(token);
         assert_eq!(FirstSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // SecondSpace
-        let global_pos = token.inside::<SecondSpace>();
+        let global_pos = SecondSpace::position_of(token);
         assert_eq!(SecondSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // ThirdSpace
-        let global_pos = token.inside::<ThirdSpace>();
+        let global_pos = ThirdSpace::position_of(token);
         assert_eq!(ThirdSpace::try_as::<CommonToken>(global_pos), Some(token));
 
         // MinimalSpace
-        let global_pos = token.inside::<MinimalSpace>();
+        let global_pos = MinimalSpace::position_of(token);
         assert_eq!(MinimalSpace::try_as::<CommonToken>(global_pos), Some(token));
     }
 
@@ -363,52 +363,49 @@ fn test_round_trip_constry_astency() {
 
     for token in special_tokens {
         // FirstSpace
-        let global_pos = token.inside::<FirstSpace>();
+        let global_pos = FirstSpace::position_of(token);
         assert_eq!(FirstSpace::try_as::<SpecialToken>(global_pos), Some(token));
 
         // SecondSpace
-        let global_pos = token.inside::<SecondSpace>();
+        let global_pos = SecondSpace::position_of(token);
         assert_eq!(SecondSpace::try_as::<SpecialToken>(global_pos), Some(token));
 
         // ThirdSpace
-        let global_pos = token.inside::<ThirdSpace>();
+        let global_pos = ThirdSpace::position_of(token);
         assert_eq!(ThirdSpace::try_as::<SpecialToken>(global_pos), Some(token));
     }
 
     // Test range token round trips for a few values
     for local_pos in [0, 25, 49, 99] {
         // TextRange in FirstSpace
-        if let Some(global_pos) = TextRange::inside::<FirstSpace>(local_pos) {
+        if let Ok(token) = TextRange::try_from(local_pos) {
+            let global_pos = FirstSpace::position_of(token);
             if let Some(TextRange(recovered_local)) = FirstSpace::try_as::<TextRange>(global_pos) {
                 assert_eq!(recovered_local, local_pos);
             }
         }
 
         // TextRange in ThirdSpace
-        if let Some(global_pos) = TextRange::inside::<ThirdSpace>(local_pos) {
+        if let Ok(token) = TextRange::try_from(local_pos) {
+            let global_pos = ThirdSpace::position_of(token);
             if let Some(TextRange(recovered_local)) = ThirdSpace::try_as::<TextRange>(global_pos) {
                 assert_eq!(recovered_local, local_pos);
             }
         }
 
         // AudioRange in SecondSpace
-        if local_pos < 50 {
-            // AudioRange only goes to 50
-            if let Some(global_pos) = AudioRange::inside::<SecondSpace>(local_pos) {
-                if let Some(AudioRange(recovered_local)) =
-                    SecondSpace::try_as::<AudioRange>(global_pos)
-                {
-                    assert_eq!(recovered_local, local_pos);
-                }
+        if let Ok(token) = AudioRange::try_from(local_pos) {
+            let global_pos = SecondSpace::position_of(token);
+            if let Some(AudioRange(recovered_local)) = SecondSpace::try_as::<AudioRange>(global_pos)
+            {
+                assert_eq!(recovered_local, local_pos);
             }
 
             // AudioRange in ThirdSpace
-            if let Some(global_pos) = AudioRange::inside::<ThirdSpace>(local_pos) {
-                if let Some(AudioRange(recovered_local)) =
-                    ThirdSpace::try_as::<AudioRange>(global_pos)
-                {
-                    assert_eq!(recovered_local, local_pos);
-                }
+            let global_pos = ThirdSpace::position_of(token);
+            if let Some(AudioRange(recovered_local)) = ThirdSpace::try_as::<AudioRange>(global_pos)
+            {
+                assert_eq!(recovered_local, local_pos);
             }
         }
     }
