@@ -78,8 +78,8 @@ fn test_token_space_with_derived_tokens() {
 #[test]
 fn test_dynamic_tokens_with_derived() {
     // Test dynamic token range (no bounds checking)
-    assert_eq!(MyTokenSpace::dynamic(0), None); // Control token
-    assert_eq!(MyTokenSpace::dynamic(6), None); // Data token
-    assert_eq!(MyTokenSpace::dynamic(7), Some(0)); // First dynamic token
-    assert_eq!(MyTokenSpace::dynamic(56), Some(49)); // Dynamic token at offset 49
+    assert_eq!(MyTokenSpace::remainder(0), None); // Control token
+    assert_eq!(MyTokenSpace::remainder(6), None); // Data token
+    assert_eq!(MyTokenSpace::remainder(7), Some(0)); // First dynamic token
+    assert_eq!(MyTokenSpace::remainder(56), Some(49)); // Dynamic token at offset 49
 }

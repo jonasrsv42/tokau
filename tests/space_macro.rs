@@ -54,9 +54,9 @@ fn test_space_macro() {
     assert_eq!(MySpace::is::<TextTokens>(1003), None);
 
     // Test dynamic tokens
-    assert_eq!(MySpace::dynamic(1002), None); // In static range
-    assert_eq!(MySpace::dynamic(1003), Some(0)); // First dynamic token
-    assert_eq!(MySpace::dynamic(2000), Some(997)); // Dynamic token at offset 997
+    assert_eq!(MySpace::remainder(1002), None); // In static range
+    assert_eq!(MySpace::remainder(1003), Some(0)); // First dynamic token
+    assert_eq!(MySpace::remainder(2000), Some(997)); // Dynamic token at offset 997
 
     // Test decode method
     assert_eq!(

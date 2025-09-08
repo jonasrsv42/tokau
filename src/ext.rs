@@ -3,8 +3,8 @@ use crate::token::NameToken;
 
 // Extension trait for filtering iterables by token type
 pub trait TokenFilter: Iterator<Item = u32> + Sized {
-    fn dynamics<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
-        self.filter_map(|id| S::dynamic(id).map(|_| id))
+    fn remainders<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
+        self.filter_map(|id| S::remainder(id).map(|_| id))
     }
 
     fn is<S: TokenSpace, T: NameToken>(self) -> impl Iterator<Item = T>
@@ -33,7 +33,7 @@ mod tests {
         let dynamic_tokens: Vec<u32> = tokens
             .clone()
             .into_iter()
-            .dynamics::<DynamicGingerSpace>()
+            .remainders::<DynamicGingerSpace>()
             .collect();
         assert_eq!(dynamic_tokens, vec![1010, 1011, 1200, 1600]); // All tokens >= RESERVED
 
@@ -61,7 +61,7 @@ mod tests {
         let stacked: Vec<u32> = tokens
             .clone()
             .into_iter()
-            .dynamics::<DynamicGingerSpace>()
+            .remainders::<DynamicGingerSpace>()
             .take(3)
             .collect();
         assert_eq!(stacked, vec![1010, 1100, 1200]);
@@ -95,7 +95,10 @@ mod tests {
     fn test_edge_cases() {
         // Empty iterator
         let empty: Vec<u32> = vec![];
-        let empty_result: Vec<u32> = empty.into_iter().dynamics::<DynamicGingerSpace>().collect();
+        let empty_result: Vec<u32> = empty
+            .into_iter()
+            .remainders::<DynamicGingerSpace>()
+            .collect();
         assert_eq!(empty_result, vec![]);
 
         // All tokens in dynamic range (no upper bounds)
@@ -103,7 +106,7 @@ mod tests {
         let no_dynamics: Vec<u32> = out_of_range
             .clone()
             .into_iter()
-            .dynamics::<DynamicGingerSpace>()
+            .remainders::<DynamicGingerSpace>()
             .collect();
         assert_eq!(no_dynamics, vec![2000, 3000, 4000]); // All tokens >= RESERVED
 
@@ -118,7 +121,7 @@ mod tests {
         let dynamic_boundary: Vec<u32> = boundary
             .clone()
             .into_iter()
-            .dynamics::<DynamicGingerSpace>()
+            .remainders::<DynamicGingerSpace>()
             .collect();
         assert_eq!(dynamic_boundary, vec![1010, 1509, 1510]); // All dynamic tokens (no bounds checking)
     }

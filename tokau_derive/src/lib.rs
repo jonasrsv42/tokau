@@ -181,7 +181,7 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
     // Add dynamic variant if present
     if let Some(dynamic_variant) = &dynamic_field {
         decode_arms.push(quote! {
-            if let Some(offset) = Self::dynamic(id) {
+            if let Some(offset) = Self::remainder(id) {
                 return Some(#name::#dynamic_variant(offset));
             }
         });

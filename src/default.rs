@@ -32,7 +32,7 @@ where
         if let Some(token) = Self::is::<T>(id) {
             return Some(NameTokenSpace::Token(token));
         }
-        if let Some(offset) = Self::dynamic(id) {
+        if let Some(offset) = Self::remainder(id) {
             return Some(NameTokenSpace::Dynamic(offset));
         }
         None
@@ -49,7 +49,7 @@ where
         if let Some(token) = Self::is::<T>(id) {
             return Some(RangeTokenSpace::Token(token));
         }
-        if let Some(offset) = Self::dynamic(id) {
+        if let Some(offset) = Self::remainder(id) {
             return Some(RangeTokenSpace::Dynamic(offset));
         }
         None
@@ -107,9 +107,9 @@ mod tests {
         );
 
         // Test that NameTokenSpace dynamic method works without bounds
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(0), None); // In static range
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(4), Some(0)); // First dynamic position
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(100), Some(96)); // Dynamic position 96
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(0), None); // In static range
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic position
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(100), Some(96)); // Dynamic position 96
     }
 
     #[test]
@@ -123,9 +123,9 @@ mod tests {
         );
 
         // Test dynamic tokens (no bounds checking now)
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(4), Some(0)); // First dynamic token
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(103), Some(99)); // Dynamic token at offset 99
-        assert_eq!(NameTokenSpace::<MaoToken>::dynamic(2), None); // In static range, not dynamic
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(4), Some(0)); // First dynamic token
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(103), Some(99)); // Dynamic token at offset 99
+        assert_eq!(NameTokenSpace::<MaoToken>::remainder(2), None); // In static range, not dynamic
 
         // Test filtering with dynamic tokens
         let tokens = vec![0, 1, 2, 3, 4, 5, 50, 103, 104, 200];
@@ -149,7 +149,7 @@ mod tests {
         // Filter dynamic tokens (no longer bounded by count)
         let dynamic_tokens: Vec<u32> = tokens
             .into_iter()
-            .dynamics::<NameTokenSpace<MaoToken>>()
+            .remainders::<NameTokenSpace<MaoToken>>()
             .collect();
         assert_eq!(dynamic_tokens, vec![4, 5, 50, 103, 104, 200]); // All tokens >= RESERVED
     }

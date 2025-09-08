@@ -28,8 +28,9 @@ pub trait TokenSpace: Sized {
         value.checked_sub(start).and_then(|v| T::try_from(v).ok())
     }
 
-    // For dynamic part - check if value is in dynamic part and return offset
-    fn dynamic(value: u32) -> Option<u32> {
+    // Return remainders outside reserved range, this can
+    // overlap and exceed any dynamic vocabulary.
+    fn remainder(value: u32) -> Option<u32> {
         value.checked_sub(Self::RESERVED)
     }
 }
@@ -127,7 +128,7 @@ pub(crate) mod tests {
             if let Some(token) = Self::is::<TextTokens>(id) {
                 return Some(DynamicGingerSpace::Text(token));
             }
-            if let Some(offset) = Self::dynamic(id) {
+            if let Some(offset) = Self::remainder(id) {
                 return Some(DynamicGingerSpace::Dynamic(offset));
             }
             None
@@ -184,11 +185,10 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_dynamic_part() {
-        // Test dynamic function (no longer needs bounds checking)
-        assert_eq!(DynamicGingerSpace::dynamic(1010), Some(0)); // First dynamic token
-        assert_eq!(DynamicGingerSpace::dynamic(1509), Some(499)); // Dynamic token at offset 499
-        assert_eq!(DynamicGingerSpace::dynamic(500), None); // In static range, not dynamic
+    fn test_remainder_part() {
+        assert_eq!(DynamicGingerSpace::remainder(1010), Some(0));
+        assert_eq!(DynamicGingerSpace::remainder(1509), Some(499));
+        assert_eq!(DynamicGingerSpace::remainder(500), None);
 
         // Static tokens still work
         assert_eq!(
