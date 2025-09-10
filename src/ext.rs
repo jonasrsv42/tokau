@@ -16,7 +16,7 @@ pub trait TokenIter: Iterator<Item = u32> + Sized {
     /// Shift each value to after the token space's reserved range
     /// This adds RESERVED to each value, placing them in the dynamic token range
     fn after_reserved<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
-        self.map(|id| id + S::RESERVED)
+        self.map(|id| S::after_reserved(id))
     }
 }
 

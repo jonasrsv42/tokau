@@ -54,6 +54,11 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
     fn is_reserved(value: u32) -> bool {
         value < Self::RESERVED
     }
+
+    // Shift a value to after the reserved range
+    fn after_reserved(value: u32) -> u32 {
+        value + Self::RESERVED
+    }
 }
 
 #[cfg(test)]
