@@ -108,7 +108,7 @@ pub mod tests {
     }
 
     // Example Range token
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone, Copy)]
     pub struct TextTokens(pub u32);
 
     impl Token for TextTokens {

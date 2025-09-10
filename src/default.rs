@@ -3,7 +3,7 @@ use crate::space::{Position, TokenSpace};
 use crate::token::Token;
 
 // Create separate types to avoid conflicting implementations
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DefaultTokenSpace<T: Token> {
     Token(T),
     Dynamic(u32),
@@ -18,6 +18,13 @@ where
     T: Token + TryFrom<u32, Error = TokauError>,
 {
     const RESERVED: u32 = T::COUNT;
+
+    fn value(self) -> u32 {
+        match self {
+            DefaultTokenSpace::Token(token) => Self::position_of(token),
+            DefaultTokenSpace::Dynamic(offset) => Self::RESERVED + offset,
+        }
+    }
 }
 
 impl<T> TryFrom<u32> for DefaultTokenSpace<T>

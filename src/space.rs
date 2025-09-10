@@ -26,6 +26,11 @@ pub trait Position<TokenType: Token> {
 pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
     const RESERVED: u32; // Fixed/static part of the token space
 
+    /// Convert a Space instance back to its global position value
+    fn value(self) -> u32
+    where
+        Self: Copy;
+
     // For NameToken tokens - try to convert global value back to token instance
     fn try_as<T: Token>(value: u32) -> Option<T>
     where
@@ -83,7 +88,7 @@ pub(crate) mod tests {
         const OFFSET: u32 = GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT;
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone, Copy)]
     pub(crate) enum GingerSpace {
         Ginger(GingerToken),
         Mao(MaoToken),
@@ -94,6 +99,15 @@ pub(crate) mod tests {
     impl TokenSpace for GingerSpace {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
+
+        fn value(self) -> u32 {
+            match self {
+                GingerSpace::Ginger(token) => Self::position_of(token),
+                GingerSpace::Mao(token) => Self::position_of(token),
+                GingerSpace::Single(token) => Self::position_of(token),
+                GingerSpace::Text(token) => Self::position_of(token),
+            }
+        }
     }
 
     impl TryFrom<u32> for GingerSpace {
@@ -120,7 +134,7 @@ pub(crate) mod tests {
     }
 
     // Example of a dynamic token space
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Clone, Copy)]
     pub(crate) enum DynamicGingerSpace {
         Ginger(GingerToken),
         Mao(MaoToken),
@@ -148,6 +162,16 @@ pub(crate) mod tests {
     impl TokenSpace for DynamicGingerSpace {
         const RESERVED: u32 =
             GingerToken::COUNT + MaoToken::COUNT + SingleToken::COUNT + TextTokens::COUNT;
+
+        fn value(self) -> u32 {
+            match self {
+                DynamicGingerSpace::Ginger(token) => Self::position_of(token),
+                DynamicGingerSpace::Mao(token) => Self::position_of(token),
+                DynamicGingerSpace::Single(token) => Self::position_of(token),
+                DynamicGingerSpace::Text(token) => Self::position_of(token),
+                DynamicGingerSpace::Dynamic(offset) => Self::RESERVED + offset,
+            }
+        }
     }
 
     impl TryFrom<u32> for DynamicGingerSpace {
@@ -548,7 +572,7 @@ pub(crate) mod tests {
         use crate::space::{Position, TokenSpace};
 
         // Create a space with different offset layout using Space derive macro
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug, PartialEq, Clone, Copy)]
         enum AlternativeSpace {
             Mao(MaoToken),       // Different order: Mao first
             Single(SingleToken), // Single second
@@ -576,6 +600,15 @@ pub(crate) mod tests {
         impl TokenSpace for AlternativeSpace {
             const RESERVED: u32 =
                 MaoToken::COUNT + SingleToken::COUNT + GingerToken::COUNT + TextTokens::COUNT;
+
+            fn value(self) -> u32 {
+                match self {
+                    AlternativeSpace::Mao(token) => Self::position_of(token),
+                    AlternativeSpace::Single(token) => Self::position_of(token),
+                    AlternativeSpace::Ginger(token) => Self::position_of(token),
+                    AlternativeSpace::Text(token) => Self::position_of(token),
+                }
+            }
         }
 
         impl TryFrom<u32> for AlternativeSpace {
@@ -676,5 +709,52 @@ pub(crate) mod tests {
         let max_safe = u32::MAX - DynamicGingerSpace::RESERVED;
         let shifted_max = DynamicGingerSpace::after_reserved(max_safe);
         assert_eq!(shifted_max, u32::MAX);
+    }
+
+    #[test]
+    fn test_space_value() {
+        // Test converting Space instances back to their global values
+
+        // Test GingerSpace variants
+        let ginger = GingerSpace::Ginger(GingerToken::TextStart);
+        assert_eq!(ginger.value(), 0);
+
+        let mao = GingerSpace::Mao(MaoToken::ProgramStart);
+        assert_eq!(mao.value(), 5);
+
+        let single = GingerSpace::Single(SingleToken::Single);
+        assert_eq!(single.value(), 9);
+
+        let text = GingerSpace::Text(TextTokens(0));
+        assert_eq!(text.value(), 10);
+
+        let text_high = GingerSpace::Text(TextTokens(999));
+        assert_eq!(text_high.value(), 1009);
+
+        // Test DynamicGingerSpace variants (same as GingerSpace for static tokens)
+        let dyn_ginger = DynamicGingerSpace::Ginger(GingerToken::AudioStart);
+        assert_eq!(dyn_ginger.value(), 2);
+
+        let dyn_mao = DynamicGingerSpace::Mao(MaoToken::Fn);
+        assert_eq!(dyn_mao.value(), 7);
+
+        // Test dynamic tokens
+        let dynamic_0 = DynamicGingerSpace::Dynamic(0);
+        assert_eq!(dynamic_0.value(), 1010); // RESERVED + 0
+
+        let dynamic_500 = DynamicGingerSpace::Dynamic(500);
+        assert_eq!(dynamic_500.value(), 1510); // RESERVED + 500
+
+        // Test round-trip: value -> try_from -> value
+        let original_value = 42u32;
+        if let Ok(space) = DynamicGingerSpace::try_from(original_value) {
+            assert_eq!(space.value(), original_value);
+        }
+
+        // Test round-trip with high values
+        let high_value = 2000u32;
+        if let Ok(space) = DynamicGingerSpace::try_from(high_value) {
+            assert_eq!(space.value(), high_value);
+        }
     }
 }

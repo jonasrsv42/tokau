@@ -192,11 +192,33 @@ pub fn derive_space(input: TokenStream) -> TokenStream {
         });
     }
 
+    // Generate value() method implementation
+    let mut value_arms = Vec::new();
+    for (variant, _token_type) in variants.iter().zip(&token_types) {
+        let variant_name = &variant.ident;
+        value_arms.push(quote! {
+            #name::#variant_name(token) => <#name as ::tokau::TokenSpace>::position_of(token)
+        });
+    }
+
+    // Add dynamic variant value arm if present
+    if let Some(dynamic_variant) = &dynamic_field {
+        value_arms.push(quote! {
+            #name::#dynamic_variant(offset) => Self::RESERVED + offset
+        });
+    }
+
     let expanded = quote! {
         #(#position_impls)*
 
         impl ::tokau::TokenSpace for #name {
             const RESERVED: u32 = #reserved_expr;
+
+            fn value(self) -> u32 {
+                match self {
+                    #(#value_arms,)*
+                }
+            }
         }
 
         impl TryFrom<u32> for #name {
