@@ -1,6 +1,19 @@
 use crate::error::TokauError;
 use crate::token::Token;
 
+/// Macro to get compile-time token position in a space
+/// Usage: `const_position!(Space, Token::Variant)`
+///
+/// This macro exists as a workaround for the lack of const fn in traits in stable Rust.
+/// Once const fn in traits is stabilized, this could be replaced with a const version
+/// of the `position_of` method.
+#[macro_export]
+macro_rules! const_position {
+    ($space:ty, $token_type:ident :: $variant:ident) => {
+        <$space as $crate::Position<$token_type>>::OFFSET + $token_type::$variant as u32
+    };
+}
+
 pub trait Position<TokenType: Token> {
     const OFFSET: u32;
 
@@ -477,6 +490,52 @@ pub(crate) mod tests {
         assert!(!GingerSpace::is_reserved(1011));
         assert!(GingerSpace::try_from(1011).is_err());
         assert_eq!(GingerSpace::remainder(1011), Some(1));
+    }
+
+    #[test]
+    fn test_const_position_macro() {
+        // Test that the macro produces const values that can be used in match
+        const GINGER_TEXT_START: u32 = const_position!(GingerSpace, GingerToken::TextStart);
+        const GINGER_AUDIO_START: u32 = const_position!(GingerSpace, GingerToken::AudioStart);
+        const MAO_PROGRAM_START: u32 = const_position!(GingerSpace, MaoToken::ProgramStart);
+        const MAO_FN: u32 = const_position!(GingerSpace, MaoToken::Fn);
+
+        // Verify these match runtime position_of
+        assert_eq!(
+            GINGER_TEXT_START,
+            GingerSpace::position_of(GingerToken::TextStart)
+        );
+        assert_eq!(
+            GINGER_AUDIO_START,
+            GingerSpace::position_of(GingerToken::AudioStart)
+        );
+        assert_eq!(
+            MAO_PROGRAM_START,
+            GingerSpace::position_of(MaoToken::ProgramStart)
+        );
+        assert_eq!(MAO_FN, GingerSpace::position_of(MaoToken::Fn));
+
+        // Test in match expression using the const values
+        fn classify_token(id: u32) -> &'static str {
+            const TEXT_START: u32 = const_position!(GingerSpace, GingerToken::TextStart);
+            const AUDIO_START: u32 = const_position!(GingerSpace, GingerToken::AudioStart);
+            const PROGRAM_START: u32 = const_position!(GingerSpace, MaoToken::ProgramStart);
+            const FN: u32 = const_position!(GingerSpace, MaoToken::Fn);
+
+            match id {
+                TEXT_START => "TextStart",
+                AUDIO_START => "AudioStart",
+                PROGRAM_START => "ProgramStart",
+                FN => "Fn",
+                _ => "Other",
+            }
+        }
+
+        assert_eq!(classify_token(0), "TextStart");
+        assert_eq!(classify_token(2), "AudioStart");
+        assert_eq!(classify_token(5), "ProgramStart");
+        assert_eq!(classify_token(7), "Fn");
+        assert_eq!(classify_token(100), "Other");
     }
 
     #[test]
