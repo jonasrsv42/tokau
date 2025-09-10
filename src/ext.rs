@@ -12,6 +12,12 @@ pub trait TokenIter: Iterator<Item = u32> + Sized {
     fn decode<S: TokenSpace>(self) -> impl Iterator<Item = Result<S, TokauError>> {
         self.map(|id| S::try_from(id))
     }
+
+    /// Shift each value to after the token space's reserved range
+    /// This adds RESERVED to each value, placing them in the dynamic token range
+    fn after_reserved<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
+        self.map(|id| id + S::RESERVED)
+    }
 }
 
 // Implementation for all iterators over u32
@@ -107,6 +113,54 @@ mod tests {
             .filter(|space_token| matches!(space_token, DynamicGingerSpace::Mao(_)))
             .count();
         assert_eq!(mao_count, 4); // ProgramStart, ProgramEnd, Fn, Struct
+    }
+
+    #[test]
+    fn test_after_reserved() {
+        // Test shifting values to after the reserved range
+        let values: Vec<u32> = vec![0, 1, 10, 100, 500];
+
+        // Shift to after DynamicGingerSpace's reserved range (RESERVED = 1010)
+        let shifted: Vec<u32> = values
+            .clone()
+            .into_iter()
+            .after_reserved::<DynamicGingerSpace>()
+            .collect();
+
+        // Each value should be increased by RESERVED (1010)
+        assert_eq!(shifted, vec![1010, 1011, 1020, 1110, 1510]);
+
+        // These shifted values should all be in the dynamic range
+        for &id in &shifted {
+            assert!(!DynamicGingerSpace::is_reserved(id));
+            assert!(DynamicGingerSpace::remainder(id).is_some());
+        }
+
+        // They should decode as Dynamic tokens
+        let decoded: Vec<DynamicGingerSpace> = shifted
+            .into_iter()
+            .decode::<DynamicGingerSpace>()
+            .filter_map(Result::ok)
+            .collect();
+
+        for (i, token) in decoded.iter().enumerate() {
+            match token {
+                DynamicGingerSpace::Dynamic(offset) => {
+                    assert_eq!(*offset, values[i]); // The offset should match the original value
+                }
+                _ => panic!("Expected Dynamic token"),
+            }
+        }
+
+        // Test chaining: shift then get remainders should give back original values
+        let round_trip: Vec<u32> = values
+            .clone()
+            .into_iter()
+            .after_reserved::<DynamicGingerSpace>()
+            .remainders::<DynamicGingerSpace>()
+            .collect();
+
+        assert_eq!(round_trip, values);
     }
 
     #[test]
