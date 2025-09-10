@@ -132,7 +132,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tokau = { version = "0.1.0", features = ["derive"] }
+tokau = { git = "ssh://git@github.com/jonasrsv42/tokau", features = ["derive"] }
+
 ```
 
 The `derive` feature (enabled by default) provides the `#[derive(Name)]`, `#[range(N)]`, and `#[derive(Space)]` macros.
@@ -213,11 +214,3 @@ See the `tests/` directory for comprehensive examples covering:
 - Iterator operations
 - Error handling patterns
 - Token reuse across multiple spaces
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## License
-
-[License information]
