@@ -632,4 +632,49 @@ pub(crate) mod tests {
             vec![MaoToken::ProgramStart, MaoToken::ProgramEnd, MaoToken::Fn]
         );
     }
+
+    #[test]
+    fn test_after_reserved() {
+        // Test shifting single values to after the reserved range
+
+        // GingerSpace::RESERVED = 1010
+        assert_eq!(GingerSpace::after_reserved(0), 1010);
+        assert_eq!(GingerSpace::after_reserved(1), 1011);
+        assert_eq!(GingerSpace::after_reserved(100), 1110);
+        assert_eq!(GingerSpace::after_reserved(500), 1510);
+
+        // Test that the shifted values are not reserved
+        assert!(!GingerSpace::is_reserved(GingerSpace::after_reserved(0)));
+        assert!(!GingerSpace::is_reserved(GingerSpace::after_reserved(100)));
+        assert!(!GingerSpace::is_reserved(GingerSpace::after_reserved(500)));
+
+        // Test that shifted values have remainders
+        assert_eq!(
+            GingerSpace::remainder(GingerSpace::after_reserved(0)),
+            Some(0)
+        );
+        assert_eq!(
+            GingerSpace::remainder(GingerSpace::after_reserved(100)),
+            Some(100)
+        );
+        assert_eq!(
+            GingerSpace::remainder(GingerSpace::after_reserved(500)),
+            Some(500)
+        );
+
+        // Test round-trip: shift then remainder should give back original value
+        let original = 42u32;
+        let shifted = GingerSpace::after_reserved(original);
+        let back_to_original = GingerSpace::remainder(shifted).unwrap();
+        assert_eq!(back_to_original, original);
+
+        // Test with DynamicGingerSpace too
+        assert_eq!(DynamicGingerSpace::after_reserved(0), 1010);
+        assert_eq!(DynamicGingerSpace::after_reserved(50), 1060);
+
+        // Test edge case with u32::MAX - RESERVED to avoid overflow
+        let max_safe = u32::MAX - DynamicGingerSpace::RESERVED;
+        let shifted_max = DynamicGingerSpace::after_reserved(max_safe);
+        assert_eq!(shifted_max, u32::MAX);
+    }
 }
