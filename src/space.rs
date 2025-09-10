@@ -36,6 +36,11 @@ pub trait TokenSpace: Sized + TryFrom<u32, Error = TokauError> {
     fn remainder(value: u32) -> Option<u32> {
         value.checked_sub(Self::RESERVED)
     }
+
+    // Check if a token is within reserved range
+    fn is_reserved(value: u32) -> bool {
+        value < Self::RESERVED
+    }
 }
 
 #[cfg(test)]
@@ -347,6 +352,131 @@ pub(crate) mod tests {
             DynamicGingerSpace::try_as::<MaoToken>(5),
             Some(MaoToken::ProgramStart)
         );
+    }
+
+    #[test]
+    fn test_is_reserved() {
+        // Test with GingerSpace (RESERVED = 1010)
+        // Values below RESERVED should return true
+        assert!(GingerSpace::is_reserved(0)); // First reserved token
+        assert!(GingerSpace::is_reserved(1));
+        assert!(GingerSpace::is_reserved(500)); // Middle of reserved range
+        assert!(GingerSpace::is_reserved(1009)); // Last reserved token
+
+        // Values at or above RESERVED should return false
+        assert!(!GingerSpace::is_reserved(1010)); // First non-reserved value
+        assert!(!GingerSpace::is_reserved(1011));
+        assert!(!GingerSpace::is_reserved(2000));
+        assert!(!GingerSpace::is_reserved(u32::MAX));
+
+        // Test with DynamicGingerSpace (also RESERVED = 1010)
+        assert!(DynamicGingerSpace::is_reserved(0));
+        assert!(DynamicGingerSpace::is_reserved(999));
+        assert!(DynamicGingerSpace::is_reserved(1009));
+        assert!(!DynamicGingerSpace::is_reserved(1010));
+        assert!(!DynamicGingerSpace::is_reserved(5000));
+
+        // Edge cases around the boundary
+        assert!(GingerSpace::is_reserved(1009)); // Last reserved
+        assert!(!GingerSpace::is_reserved(1010)); // First non-reserved
+
+        // Test specific token ranges to ensure they're all reserved
+        // GingerToken range (0-4)
+        assert!(GingerSpace::is_reserved(0));
+        assert!(GingerSpace::is_reserved(4));
+
+        // MaoToken range (5-8)
+        assert!(GingerSpace::is_reserved(5));
+        assert!(GingerSpace::is_reserved(8));
+
+        // SingleToken (9)
+        assert!(GingerSpace::is_reserved(9));
+
+        // TextTokens range (10-1009)
+        assert!(GingerSpace::is_reserved(10));
+        assert!(GingerSpace::is_reserved(1009));
+    }
+
+    #[test]
+    fn test_is_reserved_with_remainder() {
+        // Test that is_reserved correctly identifies values that have remainders
+        // Values with remainders should NOT be reserved
+
+        // DynamicGingerSpace::RESERVED = 1010
+        // remainder(1010) = Some(0), so 1010 is NOT reserved
+        assert!(!DynamicGingerSpace::is_reserved(1010));
+        assert_eq!(DynamicGingerSpace::remainder(1010), Some(0));
+
+        // remainder(1500) = Some(490), so 1500 is NOT reserved
+        assert!(!DynamicGingerSpace::is_reserved(1500));
+        assert_eq!(DynamicGingerSpace::remainder(1500), Some(490));
+
+        // remainder(500) = None (< RESERVED), so 500 IS reserved
+        assert!(DynamicGingerSpace::is_reserved(500));
+        assert_eq!(DynamicGingerSpace::remainder(500), None);
+
+        // remainder(1009) = None (< RESERVED), so 1009 IS reserved
+        assert!(DynamicGingerSpace::is_reserved(1009));
+        assert_eq!(DynamicGingerSpace::remainder(1009), None);
+    }
+
+    #[test]
+    fn test_reserved_boundary() {
+        // Test the exact boundary between reserved and non-reserved tokens
+        // GingerSpace::RESERVED = 1010
+
+        // === Value 1009: Last reserved token ===
+        // Should be reserved
+        assert!(GingerSpace::is_reserved(1009));
+
+        // Should decode successfully (it's the last TextToken)
+        assert_eq!(
+            GingerSpace::try_from(1009),
+            Ok(GingerSpace::Text(TextTokens(999)))
+        );
+
+        // Should NOT have a remainder (it's within reserved range)
+        assert_eq!(GingerSpace::remainder(1009), None);
+
+        // === Value 1010: First non-reserved value ===
+        // Should NOT be reserved
+        assert!(!GingerSpace::is_reserved(1010));
+
+        // Should FAIL to decode in GingerSpace (it's outside the static token range)
+        assert!(GingerSpace::try_from(1010).is_err());
+
+        // Should have a remainder of 0 (first value after reserved range)
+        assert_eq!(GingerSpace::remainder(1010), Some(0));
+
+        // === DynamicGingerSpace boundary test ===
+        // 1009 behaves the same - it's reserved and decodable
+        assert!(DynamicGingerSpace::is_reserved(1009));
+        assert_eq!(
+            DynamicGingerSpace::try_from(1009),
+            Ok(DynamicGingerSpace::Text(TextTokens(999)))
+        );
+        assert_eq!(DynamicGingerSpace::remainder(1009), None);
+
+        // 1010 is NOT reserved but CAN decode in DynamicGingerSpace (as Dynamic)
+        assert!(!DynamicGingerSpace::is_reserved(1010));
+        assert_eq!(
+            DynamicGingerSpace::try_from(1010),
+            Ok(DynamicGingerSpace::Dynamic(0)) // First dynamic token
+        );
+        assert_eq!(DynamicGingerSpace::remainder(1010), Some(0));
+
+        // === Additional boundary values ===
+        // 1008: Second-to-last reserved token
+        assert!(GingerSpace::is_reserved(1008));
+        assert_eq!(
+            GingerSpace::try_from(1008),
+            Ok(GingerSpace::Text(TextTokens(998)))
+        );
+
+        // 1011: Second non-reserved value
+        assert!(!GingerSpace::is_reserved(1011));
+        assert!(GingerSpace::try_from(1011).is_err());
+        assert_eq!(GingerSpace::remainder(1011), Some(1));
     }
 
     #[test]
