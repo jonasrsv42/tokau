@@ -187,6 +187,12 @@ enum SharedToken {
     Beta,
 }
 
+#[derive(Name, Debug, Clone, Copy)]
+#[repr(u32)]
+enum OtherToken {
+    Other
+}
+
 // Same token type in different positions
 #[derive(Space, Debug, PartialEq)]
 enum SpaceA {
@@ -195,7 +201,7 @@ enum SpaceA {
 
 #[derive(Space, Debug, PartialEq)]
 enum SpaceB {
-    Other(u32),           // Position 0
+    Other(OtherToken),           // Position 0
     Shared(SharedToken),  // Positions 1-2
 }
 
