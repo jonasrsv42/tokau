@@ -86,7 +86,7 @@ let space_token = MyTokenSpace::try_from(0); // Ok(MyTokenSpace::Control(Control
 ### Iterator Extensions
 
 ```rust
-use tokau::TokenFilter;
+use tokau::TokenIter;
 
 let token_ids = vec![0, 1, 50, 100, 1010, 2000];
 

@@ -7,7 +7,7 @@ pub mod token;
 // Re-export main types for convenience
 pub use default::DefaultTokenSpace;
 pub use error::TokauError;
-pub use ext::TokenFilter;
+pub use ext::TokenIter;
 pub use space::{Position, TokenSpace};
 pub use token::Token;
 

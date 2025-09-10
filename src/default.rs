@@ -41,7 +41,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ext::TokenFilter;
+    use crate::ext::TokenIter;
     use crate::token::tests::*;
 
     #[test]

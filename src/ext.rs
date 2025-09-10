@@ -2,7 +2,7 @@ use crate::error::TokauError;
 use crate::space::TokenSpace;
 
 // Extension trait for filtering iterables by token type
-pub trait TokenFilter: Iterator<Item = u32> + Sized {
+pub trait TokenIter: Iterator<Item = u32> + Sized {
     /// Filter to remainder values of dynamic tokens (tokens >= RESERVED)
     fn remainders<S: TokenSpace>(self) -> impl Iterator<Item = u32> {
         self.filter_map(|id| S::remainder(id))
@@ -15,7 +15,7 @@ pub trait TokenFilter: Iterator<Item = u32> + Sized {
 }
 
 // Implementation for all iterators over u32
-impl<I: Iterator<Item = u32> + Sized> TokenFilter for I {}
+impl<I: Iterator<Item = u32> + Sized> TokenIter for I {}
 
 #[cfg(test)]
 mod tests {
